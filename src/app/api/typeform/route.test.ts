@@ -368,6 +368,8 @@ describe("POST /api/typeform", () => {
       smtp.sendMail.mockRejectedValueOnce(Object.assign(new Error("try later"), { responseCode: 421 }));
       const first = await signed();
       expect(first.status).toBe(500);
+      expect(first.json.reason).toContain("Gmail did not accept the email (421)");
+      expect(JSON.stringify(first.json.reason)).not.toContain("jane@example.com");
       expect(files.has(MARKER)).toBe(false);
       expect(files.has(CLAIM)).toBe(false); // released so the retry can send
 

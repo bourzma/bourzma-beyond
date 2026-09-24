@@ -1,5 +1,6 @@
 import { createBeyondCard, type CardResult } from "@/lib/card/service";
 import { autoSendCardEmail, type AutoEmailStatus } from "@/lib/email/auto-send";
+import { redact } from "@/lib/card/store";
 import { InvalidAnswersError, scoreAnswers } from "@/lib/beyond/scoring";
 import { matchProjects } from "@/lib/beyond/matching";
 import {
@@ -10,6 +11,14 @@ import {
   verifyTypeformSignature,
   type TypeformWebhookPayload,
 } from "@/lib/beyond/typeform";
+
+/** An error as "Name: message" with credentials and email addresses removed. */
+function safeErrorReason(error: unknown): string {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return redact(text)
+    .replace(/[^\s<>()"',;:]+@[^\s<>()"',;:]+/g, "[address]")
+    .slice(0, 500);
+}
 
 /**
  * Typeform webhook: verifies the signature, scores the submission, matches
@@ -78,17 +87,18 @@ export async function POST(request: Request) {
     try {
       email = await autoSendCardEmail({ beyondId: card.beyondId, to: contact.email, cardStored: card.stored });
     } catch (error) {
+      // Safe to show: tokens redacted and email addresses removed.
+      const reason = safeErrorReason(error);
       console.error(
         "[typeform] card email failed",
-        JSON.stringify({
-          responseToken,
-          beyondId: card.beyondId,
-          error: error instanceof Error ? `${error.name}: ${error.message}` : "Error",
-        }),
+        JSON.stringify({ responseToken, beyondId: card.beyondId, error: reason }),
       );
       // 500 makes Typeform retry: the card is reused and the email tried again
       // (it was not marked as sent).
-      return Response.json({ error: "Card email failed", responseToken, card }, { status: 500 });
+      return Response.json(
+        { error: "Card email failed", reason, responseToken, card },
+        { status: 500 },
+      );
     }
 
     // Logs which fields arrived, never their values: no personal data in logs.
