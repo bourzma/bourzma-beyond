@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { matchProjects } from "@/lib/beyond/projects";
+import { matchProjects, type ProfessionalContext } from "@/lib/beyond/matching";
+import type { BeyondProject } from "@/lib/beyond/projects";
+import { PROFESSIONAL_FIELD_REFS } from "@/lib/beyond/typeform";
 import {
   FIELD_REFS,
   InvalidAnswersError,
@@ -22,8 +24,24 @@ import {
  *   /result?Social=4&Curiosity=5&Execution=2&Connection=3&Beyond_default=5
  *                                              scores the answers first
  * The last form suits a Typeform "redirect on completion" URL.
+ * Any form can add the professional answers used for project matching:
+ *   &Workplace_type=...&Work_area=...&Industry=...&Looking_for=...
+ * (multi-select answers as comma-separated labels, as Typeform recalls them).
  * Unstyled on purpose: the final visual design comes later.
  */
+
+function ProjectCard({ project, label }: { project: BeyondProject; label: string }) {
+  return (
+    <section data-project={project.id}>
+      <h2 className="text-xl font-semibold">{label}</h2>
+      <p>
+        <strong>{project.name}</strong> ({project.category.join(" / ")})
+      </p>
+      <p>{project.shortLine}</p>
+      <p>{project.whatWeDid}</p>
+    </section>
+  );
+}
 export default async function ResultPage(props: PageProps<"/result">) {
   const query = await props.searchParams;
   const first = (key: string) => {
@@ -80,7 +98,17 @@ export default async function ResultPage(props: PageProps<"/result">) {
   }
 
   const type = getBeyondType(typeId);
-  const projects = matchProjects(typeId);
+  const answersFor = (ref: string) => {
+    const value = first(ref)?.trim();
+    return value ? [value] : [];
+  };
+  const context: ProfessionalContext = {
+    workplaceType: answersFor(PROFESSIONAL_FIELD_REFS.workplaceType),
+    workArea: answersFor(PROFESSIONAL_FIELD_REFS.workArea),
+    industry: answersFor(PROFESSIONAL_FIELD_REFS.industry),
+    lookingFor: answersFor(PROFESSIONAL_FIELD_REFS.lookingFor),
+  };
+  const match = matchProjects(typeId, context);
 
   return (
     <main className="p-8 space-y-6">
@@ -108,18 +136,8 @@ export default async function ResultPage(props: PageProps<"/result">) {
         </section>
       )}
 
-      <section>
-        <h2 className="text-xl font-semibold">Projects for you</h2>
-        <ul className="list-disc pl-6">
-          {projects.map((project) => (
-            <li key={project.id} data-project={project.id}>
-              <strong>{project.name}</strong> ({project.category.join(" / ")})
-              <p>{project.shortLine}</p>
-              <p>{project.whatWeDid}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <ProjectCard project={match.primary} label="Your project" />
+      {match.secondary && <ProjectCard project={match.secondary} label="Also for you" />}
     </main>
   );
 }

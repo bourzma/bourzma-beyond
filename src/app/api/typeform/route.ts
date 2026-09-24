@@ -1,7 +1,8 @@
 import { InvalidAnswersError, scoreAnswers } from "@/lib/beyond/scoring";
-import { matchProjects } from "@/lib/beyond/projects";
+import { matchProjects } from "@/lib/beyond/matching";
 import {
   extractAnswers,
+  extractProfessionalContext,
   verifyTypeformSignature,
   type TypeformWebhookPayload,
 } from "@/lib/beyond/typeform";
@@ -27,11 +28,15 @@ export async function POST(request: Request) {
 
   try {
     const result = scoreAnswers(extractAnswers(payload));
+    const context = extractProfessionalContext(payload);
+    const match = matchProjects(result.beyondType, context);
     return Response.json({
       responseToken: payload.form_response?.token ?? null,
       ...result,
+      professionalContext: context,
       // Full project records, so an email step can use name, shortLine, whatWeDid, etc.
-      projects: matchProjects(result.beyondType),
+      primaryProject: match.primary,
+      secondaryProject: match.secondary,
     });
   } catch (error) {
     if (error instanceof InvalidAnswersError) {

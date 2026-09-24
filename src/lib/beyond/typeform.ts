@@ -1,15 +1,58 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { ProfessionalContext } from "./matching";
 import { FIELD_REFS, type FieldRef } from "./scoring";
+
+interface TypeformAnswer {
+  type?: string;
+  number?: number;
+  text?: string;
+  /** Single choice and dropdown questions. */
+  choice?: { label?: string; other?: string };
+  /** Multiple choice questions with several selections allowed. */
+  choices?: { labels?: string[]; other?: string };
+  field?: { ref?: string };
+}
 
 /** The parts of a Typeform webhook payload that this app reads. */
 export interface TypeformWebhookPayload {
   form_response?: {
     token?: string;
-    answers?: Array<{
-      type?: string;
-      number?: number;
-      field?: { ref?: string };
-    }>;
+    answers?: TypeformAnswer[];
+  };
+}
+
+/** Typeform field refs of the professional questions used for matching. */
+export const PROFESSIONAL_FIELD_REFS = {
+  workplaceType: "Workplace_type",
+  workArea: "Work_area",
+  industry: "Industry",
+  lookingFor: "Looking_for",
+} as const satisfies Record<keyof ProfessionalContext, string>;
+
+/** Every selected label (plus any "Other" text) of one answer. */
+function answerValues(answer: TypeformAnswer): string[] {
+  const values = [
+    answer.choice?.label,
+    answer.choice?.other,
+    ...(answer.choices?.labels ?? []),
+    answer.choices?.other,
+    answer.text,
+  ];
+  return values.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+}
+
+/** Reads the professional answers; missing questions become empty lists. */
+export function extractProfessionalContext(
+  payload: TypeformWebhookPayload,
+): ProfessionalContext {
+  const answers = payload.form_response?.answers ?? [];
+  const valuesFor = (ref: string) =>
+    answers.filter((a) => a.field?.ref === ref).flatMap(answerValues);
+  return {
+    workplaceType: valuesFor(PROFESSIONAL_FIELD_REFS.workplaceType),
+    workArea: valuesFor(PROFESSIONAL_FIELD_REFS.workArea),
+    industry: valuesFor(PROFESSIONAL_FIELD_REFS.industry),
+    lookingFor: valuesFor(PROFESSIONAL_FIELD_REFS.lookingFor),
   };
 }
 

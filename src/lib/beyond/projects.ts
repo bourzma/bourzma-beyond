@@ -4,7 +4,7 @@ export interface BeyondProject {
   id: string;
   name: string;
   category: string[];
-  /** Types this project suits, most aligned first. Drives matching. */
+  /** Types this project suits, most aligned first. Main matching signal. */
   bestAlignedWith: BeyondTypeId[];
   shortLine: string;
   /** Plain text, usable in both the result page and the email template. */
@@ -14,7 +14,11 @@ export interface BeyondProject {
   image: string | null;
   videoUrl: string | null;
   ctaUrl: string | null;
-  /** Placeholders until defined: not used by matching yet. */
+  /**
+   * Typeform option labels, copied exactly, that make this project a better
+   * fit (see matching.ts). Empty list = this field never adds points.
+   */
+  relevantWorkplaceTypes: string[];
   relevantWorkAreas: string[];
   relevantIndustries: string[];
   relevantLookingFor: string[];
@@ -33,6 +37,8 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
+    // TODO: fill with exact Typeform option labels.
+    relevantWorkplaceTypes: [],
     relevantWorkAreas: [],
     relevantIndustries: [],
     relevantLookingFor: [],
@@ -49,6 +55,8 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
+    // TODO: fill with exact Typeform option labels.
+    relevantWorkplaceTypes: [],
     relevantWorkAreas: [],
     relevantIndustries: [],
     relevantLookingFor: [],
@@ -57,7 +65,8 @@ export const PROJECTS: BeyondProject[] = [
     id: "delivery-van-redesign",
     name: "DELIVERY VAN REDESIGN",
     category: ["Special Projects", "Brand Activation", "Design"],
-    bestAlignedWith: ["catalyst", "visionary", "rulebreaker"],
+    // Maker: a designed concept turned into a real physical brand activation.
+    bestAlignedWith: ["catalyst", "visionary", "rulebreaker", "maker"],
     shortLine: "Turning an everyday delivery van into a moving brand experience.",
     whatWeDid:
       "We created a custom visual concept for a brand and transformed one of their delivery vans into a moving piece of brand communication, taking the design out of traditional media and onto the streets.",
@@ -65,6 +74,8 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
+    // TODO: fill with exact Typeform option labels.
+    relevantWorkplaceTypes: [],
     relevantWorkAreas: [],
     relevantIndustries: [],
     relevantLookingFor: [],
@@ -81,6 +92,8 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
+    // TODO: fill with exact Typeform option labels.
+    relevantWorkplaceTypes: [],
     relevantWorkAreas: [],
     relevantIndustries: [],
     relevantLookingFor: [],
@@ -97,26 +110,10 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
+    // TODO: fill with exact Typeform option labels.
+    relevantWorkplaceTypes: [],
     relevantWorkAreas: [],
     relevantIndustries: [],
     relevantLookingFor: [],
   },
 ];
-
-/**
- * Projects aligned with the given type, ordered by how high the type appears
- * in each project's bestAlignedWith list, then by catalogue order.
- * Deterministic: no AI, no randomness.
- */
-export function matchProjects(
-  type: BeyondTypeId,
-  projects: BeyondProject[] = PROJECTS,
-  limit = 3,
-): BeyondProject[] {
-  return projects
-    .map((project, index) => ({ project, index, rank: project.bestAlignedWith.indexOf(type) }))
-    .filter((entry) => entry.rank !== -1)
-    .sort((a, b) => a.rank - b.rank || a.index - b.index)
-    .slice(0, limit)
-    .map((entry) => entry.project);
-}
