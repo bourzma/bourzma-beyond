@@ -58,7 +58,7 @@ these numbers so the order cannot change by accident.
 | ---------------------------- | ----------------------------------------------- |
 | `src/lib/beyond/types.ts`    | The five types, names, taglines, tie-break order, strong-side wording |
 | `src/lib/beyond/scoring.ts`  | Answer validation, formulas, type selection     |
-| `src/lib/beyond/projects.ts` | Project catalogue and matching (**placeholder projects**) |
+| `src/lib/beyond/projects.ts` | The five Bourzma projects (all texts, media URLs) and matching |
 | `src/lib/beyond/typeform.ts` | Reads Typeform webhook payloads, verifies signatures |
 | `src/app/api/typeform`       | `POST` webhook endpoint, returns the scored result as JSON |
 | `src/app/result`             | Basic, unstyled result page                     |
@@ -72,11 +72,30 @@ these numbers so the order cannot change by accident.
   scores the answers first. Use this form as Typeform's
   "redirect on completion" URL, recalling each answer into its parameter.
 
+## Projects
+
+All project content lives in `src/lib/beyond/projects.ts`, one object per
+project: `name`, `category`, `bestAlignedWith`, `shortLine`, `whatWeDid`,
+`symbol`, `image`, `videoUrl`, `ctaUrl`, `relevantWorkAreas`,
+`relevantIndustries`, `relevantLookingFor`.
+
+- `symbol`, `image`, `videoUrl` and `ctaUrl` are `null` until filled in.
+  Images can be full URLs or files placed in `public/projects/` and written as
+  `/projects/<file>.jpg`.
+- `relevantWorkAreas`, `relevantIndustries` and `relevantLookingFor` are empty
+  placeholders and are not used by matching yet.
+
+**Matching** (deterministic, no AI): a person's Beyond Type is looked up in
+each project's `bestAlignedWith` list. Projects where the type appears earlier
+in that list come first; equal positions keep catalogue order. Up to 3
+projects are returned.
+
 ## Webhook
 
 Point a Typeform webhook at `POST /api/typeform`. If
 `TYPEFORM_WEBHOOK_SECRET` is set, the `Typeform-Signature` header is checked.
-See `.env.example`.
+See `.env.example`. The response includes the matched projects in full
+(including `whatWeDid`), ready for an email template.
 
 ## Development
 

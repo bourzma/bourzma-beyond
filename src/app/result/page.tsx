@@ -112,8 +112,10 @@ export default async function ResultPage(props: PageProps<"/result">) {
         <h2 className="text-xl font-semibold">Projects for you</h2>
         <ul className="list-disc pl-6">
           {projects.map((project) => (
-            <li key={project.id}>
-              <strong>{project.title}</strong>: {project.description}
+            <li key={project.id} data-project={project.id}>
+              <strong>{project.name}</strong> ({project.category.join(" / ")})
+              <p>{project.shortLine}</p>
+              <p>{project.whatWeDid}</p>
             </li>
           ))}
         </ul>

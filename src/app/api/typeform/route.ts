@@ -30,7 +30,8 @@ export async function POST(request: Request) {
     return Response.json({
       responseToken: payload.form_response?.token ?? null,
       ...result,
-      projects: matchProjects(result.beyondType).map((p) => p.id),
+      // Full project records, so an email step can use name, shortLine, whatWeDid, etc.
+      projects: matchProjects(result.beyondType),
     });
   } catch (error) {
     if (error instanceof InvalidAnswersError) {
