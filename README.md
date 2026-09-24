@@ -62,19 +62,46 @@ these numbers so the order cannot change by accident.
 | `src/lib/beyond/matching.ts` | Picks the primary and "Also for you" project    |
 | `src/lib/beyond/typeform.ts` | Reads Typeform webhook payloads, verifies signatures |
 | `src/app/api/typeform`       | `POST` webhook endpoint, returns the scored result as JSON |
-| `src/app/result`             | Basic, unstyled result page                     |
+| `src/lib/beyond/result.ts`   | Turns /result URL parameters into type + primary project |
+| `src/app/result`             | The result page shown after the Typeform        |
 
 ## Result page
 
-- `/result?type=maker` shows any type directly (`visionary`, `connector`,
-  `maker`, `catalyst`, `rulebreaker`). Add `&sides=catalyst` (comma-separated)
-  to preview strong sides.
-- `/result?Social=4&Curiosity=5&Execution=2&Connection=3&Beyond_default=5`
-  scores the answers first. Use this form as Typeform's
-  "redirect on completion" URL, recalling each answer into its parameter.
-- Optionally add `&Looking_for=…&Workplace_type=…` to either form to use
-  professional context in project matching. Contact details (name, email,
-  LinkedIn) are never needed in the URL.
+Shown right after the Typeform. It reveals the Beyond Type, its description
+and the **symbol** of the primary matched project, never the project's name:
+people find the project by finding the symbol in the Bourzma space.
+
+It reads only these URL parameters:
+
+| Parameter                                                   | Required |
+| ----------------------------------------------------------- | -------- |
+| `Social`, `Curiosity`, `Execution`, `Connection`, `Beyond_default` (1–5) | yes |
+| `Looking_for`, `Workplace_type` (exact option labels)       | no       |
+
+Personal details (name, email, company, LinkedIn, role) must never be put in
+the URL. Missing or invalid answers show a "we couldn't read your answers"
+screen.
+
+For previews and testing, `/result?type=maker` (any of `visionary`,
+`connector`, `maker`, `catalyst`, `rulebreaker`) skips scoring.
+
+### Symbols
+
+Set `symbol` in `projects.ts` to an artwork file, ideally SVG, e.g. put
+`public/symbols/boutique.svg` there and write `symbol: "/symbols/boutique.svg"`.
+Until then the page shows a numbered temporary placeholder (01–05 in
+catalogue order).
+
+### Typeform redirect
+
+In the Typeform, use **Redirect to URL** on completion with:
+
+```
+https://<your-domain>/result?Social={{field:Social}}&Curiosity={{field:Curiosity}}&Execution={{field:Execution}}&Connection={{field:Connection}}&Beyond_default={{field:Beyond_default}}&Looking_for={{field:Looking_for}}&Workplace_type={{field:Workplace_type}}
+```
+
+Insert each `{{field:…}}` with Typeform's recall (@) picker rather than typing
+it, so it is linked to the right question.
 
 ## Projects
 

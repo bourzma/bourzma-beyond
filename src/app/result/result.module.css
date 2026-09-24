@@ -1,0 +1,215 @@
+/*
+ * /result — black and white, editorial, mobile-first.
+ * The two dominant elements are the type name and the project symbol.
+ */
+
+.page {
+  --gutter: 1.25rem;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  max-width: 48rem;
+  margin: 0 auto;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Masthead ------------------------------------------------------------ */
+
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1.25rem var(--gutter) 0;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.wordmark {
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: 1.125rem;
+  letter-spacing: 0.06em;
+}
+
+.edition {
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Type reveal --------------------------------------------------------- */
+
+.reveal {
+  container-type: inline-size;
+  padding: clamp(3.5rem, 14vh, 7rem) var(--gutter) 0;
+}
+
+.kicker,
+.label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Sized from the word's measured width (--word-em) so it spans the column. */
+.type {
+  --word-em: 5.3;
+  margin: 0.5rem 0 0 -0.04em;
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: min(calc(100cqi / (var(--word-em) * 1.02)), 12rem);
+  white-space: nowrap;
+  line-height: 0.82;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.tagline {
+  max-width: 22ch;
+  margin: 1.75rem 0 0;
+  font-family: var(--font-bodoni), Georgia, serif;
+  font-style: italic;
+  font-size: clamp(1.5rem, 7vw, 2.5rem);
+  font-variation-settings: "opsz" 96;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+/* Next place ---------------------------------------------------------- */
+
+.rule {
+  margin: clamp(2.5rem, 9vh, 5rem) var(--gutter) 0;
+  border: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.next {
+  padding: 1.25rem var(--gutter) clamp(3.5rem, 12vh, 6rem);
+}
+
+.symbolFrame {
+  width: min(78vw, 24rem);
+  aspect-ratio: 1;
+  margin: clamp(2.5rem, 8vh, 4rem) auto 0;
+  display: grid;
+  place-items: center;
+}
+
+.symbolImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Temporary stand-in until the real symbols exist. */
+.placeholder {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 3px solid var(--ink);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+}
+
+.placeholderMark {
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: min(40vw, 12rem);
+  line-height: 1;
+}
+
+.placeholderNote {
+  padding-bottom: 0.875rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.instruction {
+  margin: 2rem auto 0;
+  max-width: 18ch;
+  text-align: center;
+  font-family: var(--font-bodoni), Georgia, serif;
+  font-style: italic;
+  font-size: clamp(1.25rem, 5.5vw, 1.75rem);
+  line-height: 1.2;
+}
+
+/* Beyond Card --------------------------------------------------------- */
+
+.card {
+  margin-top: auto;
+  padding: 2.5rem var(--gutter) calc(2.5rem + env(safe-area-inset-bottom));
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.cardLine {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.cardCall {
+  margin: 0.75rem 0 0;
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: clamp(2.75rem, 15vw, 5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+/* Invalid / missing answers -------------------------------------------- */
+
+.problem {
+  padding: clamp(3.5rem, 14vh, 7rem) var(--gutter);
+}
+
+.problemTitle {
+  margin: 0.5rem 0 0;
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: clamp(3rem, 16vw, 6rem);
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+/* Entrance: the type first, then the symbol, then the card. ------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal,
+  .rule,
+  .next,
+  .card {
+    animation: rise 900ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+  }
+  .rule { animation-delay: 500ms; }
+  .next { animation-delay: 650ms; }
+  .card { animation-delay: 1000ms; }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 48rem) {
+  .page {
+    --gutter: 3rem;
+  }
+}
