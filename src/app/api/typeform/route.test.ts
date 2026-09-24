@@ -1,7 +1,17 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import submission from "@/lib/beyond/fixtures/typeform-submission.json";
+import { beyondIdFor } from "@/lib/card/beyond-id";
 import { POST } from "./route";
+
+const blob = vi.hoisted(() => ({ head: vi.fn(), put: vi.fn(), get: vi.fn() }));
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  ...blob,
+}));
+const { BlobNotFoundError } = await vi.importActual<typeof import("@vercel/blob")>("@vercel/blob");
+
+const BEYOND_ID = beyondIdFor("test-response-token");
 
 const SECRET = "test-secret";
 const body = JSON.stringify(submission);
@@ -22,6 +32,9 @@ describe("POST /api/typeform", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
+    blob.head.mockReset().mockRejectedValue(new BlobNotFoundError());
+    blob.put.mockReset().mockResolvedValue({ pathname: `cards/${BEYOND_ID}.png` });
+    blob.get.mockReset();
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -81,6 +94,82 @@ describe("POST /api/typeform", () => {
     vi.stubEnv("TYPEFORM_WEBHOOK_SECRET", "");
     vi.stubEnv("VERCEL_ENV", "production");
     expect((await post(body)).status).toBe(503);
+  });
+
+  describe("Beyond Card", () => {
+    const signed = async (raw = body) => {
+      const res = await post(raw, sign(raw));
+      return { status: res.status, json: await res.json() };
+    };
+    const withAnswers = (edit: (answers: typeof submission.form_response.answers) => unknown[]) =>
+      JSON.stringify({
+        ...submission,
+        form_response: { ...submission.form_response, answers: edit(submission.form_response.answers) },
+      });
+
+    beforeEach(() => {
+      vi.stubEnv("TYPEFORM_WEBHOOK_SECRET", SECRET);
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+    });
+
+    it("generates and stores the card for a new submission", async () => {
+      const { status, json } = await signed();
+      expect(status).toBe(200);
+      expect(json.card).toMatchObject({
+        beyondId: BEYOND_ID,
+        status: "generated",
+        stored: true,
+        width: 2160,
+        height: 1400,
+      });
+      expect(blob.put).toHaveBeenCalledTimes(1);
+      const [pathname, png, options] = blob.put.mock.calls[0];
+      expect(pathname).toBe(`cards/${BEYOND_ID}.png`);
+      expect(Buffer.from(png).subarray(1, 4).toString()).toBe("PNG");
+      expect(options).toMatchObject({ access: "private", contentType: "image/png", addRandomSuffix: false });
+    });
+
+    it("does not generate a second card when Typeform retries", async () => {
+      blob.head.mockResolvedValue({ pathname: `cards/${BEYOND_ID}.png` });
+      const { status, json } = await signed();
+      expect(status).toBe(200);
+      expect(json.card).toEqual({ beyondId: BEYOND_ID, status: "already-generated", stored: true });
+      expect(blob.put).not.toHaveBeenCalled();
+    });
+
+    it("gives the same Beyond ID for the same response token", async () => {
+      const first = await signed();
+      const second = await signed();
+      expect(first.json.card.beyondId).toBe(second.json.card.beyondId);
+    });
+
+    it("renders without a company or last name", async () => {
+      const raw = withAnswers((a) => a.filter((x) => !["Company", "Last_name"].includes(x.field.ref)));
+      const { status, json } = await signed(raw);
+      expect(status).toBe(200);
+      expect(json.contact.company).toBeNull();
+      expect(json.card.status).toBe("generated");
+    });
+
+    it("still generates the card when storage is not configured", async () => {
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+      const { status, json } = await signed();
+      expect(status).toBe(200);
+      expect(json.card).toMatchObject({ beyondId: BEYOND_ID, status: "generated-not-stored", stored: false });
+      expect(blob.put).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 so Typeform retries when storage fails", async () => {
+      blob.put.mockRejectedValue(new Error("storage down"));
+      const { status } = await signed();
+      expect(status).toBe(500);
+    });
+
+    it("rejects submissions without a response token", async () => {
+      const raw = JSON.stringify({ ...submission, form_response: { ...submission.form_response, token: undefined } });
+      expect((await signed(raw)).status).toBe(422);
+      expect(blob.put).not.toHaveBeenCalled();
+    });
   });
 
   it("returns 422 when personality answers are missing", async () => {

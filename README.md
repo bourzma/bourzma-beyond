@@ -160,6 +160,7 @@ Production URL: `https://bourzma-beyond.vercel.app/api/typeform`
   delivery log. **Logs** show only which fields arrived, never their values.
 - `Role` and contact fields are never used for matching.
 - Sample payload for tests: `src/lib/beyond/fixtures/typeform-submission.json`.
+- Generates and privately stores the Beyond Card (see below).
 - No email is sent yet.
 
 ## Beyond Card (`src/lib/card`)
@@ -179,7 +180,17 @@ Beyond ID, name, company, Beyond Type and its description.
   included). Archivo Expanded stands in, calibrated to Sequel's widths and cap
   height; Unbounded covers Cyrillic. See `text.ts` to swap in Sequel.
 - `npm run cards:samples` renders sample cards to `card-samples/`.
-- Not yet connected to the webhook.
+
+**In the webhook:** after scoring and matching, `createBeyondCard()`
+(`src/lib/card/service.ts`) generates the card and stores it as a private
+Vercel Blob at `cards/<Beyond ID>.png`. The Beyond ID is derived from
+Typeform's response token, so a retried webhook finds the stored card and
+creates no duplicate. If generation or storage fails the webhook returns 500
+and Typeform retries. The response and logs include `card` (ID and status).
+
+**Preview (testing):** `GET /api/cards/<Beyond ID>?key=<CARD_PREVIEW_KEY>`
+shows the stored PNG; add `&download=1` to download it. Disabled unless
+`CARD_PREVIEW_KEY` is set; never cached or indexed.
 
 ## Development
 
