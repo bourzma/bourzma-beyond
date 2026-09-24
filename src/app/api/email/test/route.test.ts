@@ -121,12 +121,18 @@ describe("POST /api/email/test", () => {
     expect(smtp.sendMail).not.toHaveBeenCalled();
   });
 
-  it("reports a Gmail rejection without echoing addresses", async () => {
-    smtp.sendMail.mockRejectedValue(Object.assign(new Error(`Invalid login for ${TO}`), { responseCode: 535 }));
+  it("reports Gmail's reason without echoing addresses", async () => {
+    smtp.sendMail.mockRejectedValue(
+      Object.assign(new Error(`Invalid login for ${TO}`), {
+        responseCode: 534,
+        response: `534-5.7.9 Application-specific password required for ${TO}. https://support.google.com/mail/?p=InvalidSecondFactor`,
+      }),
+    );
     const res = await send({ beyondId: ID, to: TO });
     expect(res.status).toBe(502);
     const { error } = await res.json();
-    expect(error).toContain("535");
+    expect(error).toContain("(534)");
+    expect(error).toContain("5.7.9 Application-specific password required");
     expect(error).not.toContain(TO);
   });
 

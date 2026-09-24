@@ -57,8 +57,15 @@ export async function sendBeyondCardEmail(input: { beyondId: string; to: string 
     return { messageId, beyondType: meta.beyondType, primaryProjectId: meta.primaryProjectId };
   } catch (error) {
     if (error instanceof MailerConfigError) throw new CardEmailError(500, error.message);
-    // SMTP errors can echo addresses; keep only the code for the message.
-    const code = (error as { code?: string; responseCode?: number })?.responseCode ?? (error as { code?: string })?.code;
-    throw new CardEmailError(502, `Gmail did not accept the email (${code ?? "unknown error"})`);
+    const smtp = error as { code?: string; responseCode?: number; response?: string };
+    const code = smtp.responseCode ?? smtp.code ?? "unknown error";
+    // Gmail's reply says why (e.g. "5.7.9 Application-specific password
+    // required"); addresses are removed because SMTP replies can echo them.
+    const reason = (smtp.response ?? "")
+      .replace(/[^\s<>()"',;:]+@[^\s<>()"',;:]+/g, "[address]")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 300);
+    throw new CardEmailError(502, `Gmail did not accept the email (${code})${reason ? `: ${reason}` : ""}`);
   }
 }
