@@ -162,6 +162,25 @@ Production URL: `https://bourzma-beyond.vercel.app/api/typeform`
 - Sample payload for tests: `src/lib/beyond/fixtures/typeform-submission.json`.
 - No email is sent yet.
 
+## Beyond Card (`src/lib/card`)
+
+A deterministic recreation of the Canva design: the Canva artwork is the
+fixed background (`assets/beyond-card-background.svg`, produced by
+`scripts/extract-card-background.py` from the Canva SVG export) and only the
+text is drawn on top, at the exact Canva positions and sizes:
+Beyond ID, name, company, Beyond Type and its description.
+
+- All text is converted to vector paths with the bundled fonts, so the card
+  looks identical everywhere and typed text never becomes SVG markup.
+- Long names shrink, then use two lines (breaking at spaces or hyphens);
+  long companies shrink, then are cut with "…". Nothing overflows.
+- Output: PNG 2160 × 1400.
+- Fonts: the design uses **Sequel 100 Black 65 / 45** (licensed, not
+  included). Archivo Expanded stands in, calibrated to Sequel's widths and cap
+  height; Unbounded covers Cyrillic. See `text.ts` to swap in Sequel.
+- `npm run cards:samples` renders sample cards to `card-samples/`.
+- Not yet connected to the webhook.
+
 ## Development
 
 ```bash
