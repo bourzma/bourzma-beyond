@@ -1,4 +1,5 @@
 import { createBeyondCard, type CardResult } from "@/lib/card/service";
+import { autoSendCardEmail, type AutoEmailStatus } from "@/lib/email/auto-send";
 import { InvalidAnswersError, scoreAnswers } from "@/lib/beyond/scoring";
 import { matchProjects } from "@/lib/beyond/matching";
 import {
@@ -14,7 +15,7 @@ import {
  * Typeform webhook: verifies the signature, scores the submission, matches
  * projects, generates and stores the Beyond Card, and returns everything
  * parsed so it can be checked in Typeform's delivery log.
- * No email is sent yet.
+ * Emails the card only when EMAIL_AUTO_SEND=true (see lib/email/auto-send).
  */
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -72,6 +73,24 @@ export async function POST(request: Request) {
       return Response.json({ error: "Card generation failed", responseToken }, { status: 500 });
     }
 
+    // Beyond Card email: only when EMAIL_AUTO_SEND=true, at most once per card.
+    let email: { status: AutoEmailStatus; messageId?: string };
+    try {
+      email = await autoSendCardEmail({ beyondId: card.beyondId, to: contact.email, cardStored: card.stored });
+    } catch (error) {
+      console.error(
+        "[typeform] card email failed",
+        JSON.stringify({
+          responseToken,
+          beyondId: card.beyondId,
+          error: error instanceof Error ? `${error.name}: ${error.message}` : "Error",
+        }),
+      );
+      // 500 makes Typeform retry: the card is reused and the email tried again
+      // (it was not marked as sent).
+      return Response.json({ error: "Card email failed", responseToken, card }, { status: 500 });
+    }
+
     // Logs which fields arrived, never their values: no personal data in logs.
     console.log(
       "[typeform] submission parsed",
@@ -92,6 +111,7 @@ export async function POST(request: Request) {
         primaryProject: match.primary.id,
         secondaryProject: match.secondary?.id ?? null,
         card,
+        email,
       }),
     );
     if (!card.stored) {
@@ -111,6 +131,7 @@ export async function POST(request: Request) {
       primaryProject: match.primary,
       secondaryProject: match.secondary,
       card,
+      email,
     });
   } catch (error) {
     if (error instanceof InvalidAnswersError) {

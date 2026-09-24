@@ -15,14 +15,15 @@
     "@vercel/blob": "^2.8.0",
     "fontkit": "^2.0.4",
     "next": "16.3.6",
+    "nodemailer": "^10.0.10",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "resend": "^6.28.1"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/fontkit": "^2.0.9",
     "@types/node": "^24.13.6",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

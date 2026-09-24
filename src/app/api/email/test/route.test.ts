@@ -1,17 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-const blob = vi.hoisted(() => ({ get: vi.fn() }));
+const blob = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn() }));
 vi.mock("@vercel/blob", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/blob")>()),
   ...blob,
 }));
-const resend = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock("resend", () => ({
-  Resend: class {
-    emails = { send: resend.send };
-  },
-}));
+const smtp = vi.hoisted(() => ({ sendMail: vi.fn(), createTransport: vi.fn() }));
+vi.mock("nodemailer", () => ({ default: { createTransport: smtp.createTransport } }));
 
 const ID = "BYD-ETXQ-97CX";
 const TO = "tester@example.com";
@@ -39,14 +35,16 @@ describe("POST /api/email/test", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubEnv("EMAIL_TEST_KEY", "email-key");
-    vi.stubEnv("RESEND_API_KEY", "re_test_key");
-    vi.stubEnv("EMAIL_FROM", "BOURZMA <onboarding@resend.dev>");
+    vi.stubEnv("GMAIL_USER", "bourzma.test@gmail.com");
+    vi.stubEnv("GMAIL_APP_PASSWORD", "abcd efgh ijkl mnop");
     blob.get.mockReset().mockImplementation(async (pathname: string) => {
       if (pathname === `cards/${ID}.json`) return { statusCode: 200, stream: new Blob([JSON.stringify(META)]).stream() };
       if (pathname === `cards/${ID}.png`) return { statusCode: 200, stream: new Blob([PNG]).stream() };
       return null;
     });
-    resend.send.mockReset().mockResolvedValue({ data: { id: "email_123" }, error: null });
+    blob.put.mockReset();
+    smtp.sendMail.mockReset().mockResolvedValue({ messageId: "<msg-1@gmail.com>" });
+    smtp.createTransport.mockReset().mockReturnValue({ sendMail: smtp.sendMail });
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -56,52 +54,63 @@ describe("POST /api/email/test", () => {
   it("is disabled without EMAIL_TEST_KEY", async () => {
     vi.stubEnv("EMAIL_TEST_KEY", "");
     expect((await send({ beyondId: ID, to: TO })).status).toBe(404);
-    expect(resend.send).not.toHaveBeenCalled();
+    expect(smtp.sendMail).not.toHaveBeenCalled();
   });
 
   it("requires the right key", async () => {
     expect((await send({ beyondId: ID, to: TO }, null)).status).toBe(401);
     expect((await send({ beyondId: ID, to: TO }, "wrong")).status).toBe(401);
-    expect(resend.send).not.toHaveBeenCalled();
+    expect(smtp.sendMail).not.toHaveBeenCalled();
   });
 
   it("validates the input", async () => {
     expect((await send("not json")).status).toBe(400);
     expect((await send({ beyondId: "nope", to: TO })).status).toBe(400);
     expect((await send({ beyondId: ID, to: "a@b.com, c@d.com" })).status).toBe(400);
-    expect(resend.send).not.toHaveBeenCalled();
+    expect(smtp.sendMail).not.toHaveBeenCalled();
   });
 
-  it("sends the exact stored PNG with the stored type and project", async () => {
+  it("sends the exact stored PNG through Gmail", async () => {
     const res = await send({ beyondId: ID.toLowerCase(), to: TO });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       ok: true,
       beyondId: ID,
-      emailId: "email_123",
+      messageId: "<msg-1@gmail.com>",
       beyondType: "visionary",
       primaryProjectId: "delivery-van-redesign",
     });
 
-    const message = resend.send.mock.calls[0][0];
+    expect(smtp.createTransport).toHaveBeenCalledWith({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: "bourzma.test@gmail.com", pass: "abcdefghijklmnop" },
+    });
+    const message = smtp.sendMail.mock.calls[0][0];
     expect(message).toMatchObject({
-      from: "BOURZMA <onboarding@resend.dev>",
+      from: { name: "BOURZMA", address: "bourzma.test@gmail.com" },
       to: TO,
       subject: "Your Beyond Card — THE VISIONARY",
     });
     expect(message.text).toContain("DELIVERY VAN REDESIGN");
     expect(message.attachments).toHaveLength(1);
     expect(Buffer.compare(message.attachments[0].content, PNG)).toBe(0);
-    expect(message.attachments[0]).toMatchObject({ contentType: "image/png", contentId: "beyond-card" });
+    expect(message.attachments[0]).toMatchObject({ contentType: "image/png", cid: "beyond-card" });
+  });
+
+  it("does not mark the card as emailed", async () => {
+    await send({ beyondId: ID, to: TO });
+    expect(blob.put).not.toHaveBeenCalled();
   });
 
   it("never logs the recipient address", async () => {
     await send({ beyondId: ID, to: TO });
-    resend.send.mockResolvedValueOnce({ data: null, error: { name: "validation_error", message: `not allowed: ${TO}` } });
+    smtp.sendMail.mockRejectedValueOnce(Object.assign(new Error(`rejected ${TO}`), { responseCode: 550 }));
     await send({ beyondId: ID, to: TO });
     const logged = [...vi.mocked(console.log).mock.calls, ...vi.mocked(console.error).mock.calls].flat().join(" ");
     expect(logged).not.toContain(TO);
-    expect(logged).toContain("email_123");
+    expect(logged).toContain("msg-1@gmail.com");
   });
 
   it("explains when the card has no stored data yet", async () => {
@@ -109,18 +118,22 @@ describe("POST /api/email/test", () => {
     const res = await send({ beyondId: ID, to: TO });
     expect(res.status).toBe(404);
     expect((await res.json()).error).toContain("resend the delivery");
-    expect(resend.send).not.toHaveBeenCalled();
+    expect(smtp.sendMail).not.toHaveBeenCalled();
   });
 
-  it("reports a Resend rejection", async () => {
-    resend.send.mockResolvedValue({ data: null, error: { name: "validation_error", message: "Only own address" } });
+  it("reports a Gmail rejection without echoing addresses", async () => {
+    smtp.sendMail.mockRejectedValue(Object.assign(new Error(`Invalid login for ${TO}`), { responseCode: 535 }));
     const res = await send({ beyondId: ID, to: TO });
     expect(res.status).toBe(502);
-    expect((await res.json()).error).toContain("Only own address");
+    const { error } = await res.json();
+    expect(error).toContain("535");
+    expect(error).not.toContain(TO);
   });
 
-  it("fails clearly when Resend is not configured", async () => {
-    vi.stubEnv("RESEND_API_KEY", "");
-    expect((await send({ beyondId: ID, to: TO })).status).toBe(500);
+  it("fails clearly when Gmail is not configured", async () => {
+    vi.stubEnv("GMAIL_APP_PASSWORD", "");
+    const res = await send({ beyondId: ID, to: TO });
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toContain("GMAIL_APP_PASSWORD");
   });
 });

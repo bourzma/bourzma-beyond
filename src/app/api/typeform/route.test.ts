@@ -10,12 +10,8 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
   ...blob,
 }));
 const { BlobNotFoundError } = await vi.importActual<typeof import("@vercel/blob")>("@vercel/blob");
-const resend = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock("resend", () => ({
-  Resend: class {
-    emails = { send: resend.send };
-  },
-}));
+const smtp = vi.hoisted(() => ({ sendMail: vi.fn() }));
+vi.mock("nodemailer", () => ({ default: { createTransport: () => ({ sendMail: smtp.sendMail }) } }));
 
 const BEYOND_ID = beyondIdFor("test-response-token");
 
@@ -41,6 +37,7 @@ describe("POST /api/typeform", () => {
     blob.head.mockReset().mockRejectedValue(new BlobNotFoundError());
     blob.put.mockReset().mockResolvedValue({ pathname: `cards/${BEYOND_ID}.png` });
     blob.get.mockReset();
+    smtp.sendMail.mockReset().mockResolvedValue({ messageId: "<msg-1@gmail.com>" });
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -168,9 +165,13 @@ describe("POST /api/typeform", () => {
       expect(blob.put.mock.calls[0][0]).toBe(`cards/${BEYOND_ID}.json`);
     });
 
-    it("never sends email (automatic emails are off)", async () => {
-      await signed();
-      expect(resend.send).not.toHaveBeenCalled();
+    it("sends no email unless EMAIL_AUTO_SEND is true", async () => {
+      for (const value of ["", "false", "1", "TRUE"]) {
+        vi.stubEnv("EMAIL_AUTO_SEND", value);
+        const { json } = await signed();
+        expect(json.email).toEqual({ status: "disabled" });
+      }
+      expect(smtp.sendMail).not.toHaveBeenCalled();
     });
 
     it("gives the same Beyond ID for the same response token", async () => {
@@ -211,6 +212,100 @@ describe("POST /api/typeform", () => {
       const raw = JSON.stringify({ ...submission, form_response: { ...submission.form_response, token: undefined } });
       expect((await signed(raw)).status).toBe(422);
       expect(blob.put).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("automatic Beyond Card email (EMAIL_AUTO_SEND=true)", () => {
+    // In-memory private Blob store, so card, card data and marker round-trip.
+    const files = new Map<string, Buffer>();
+
+    beforeEach(() => {
+      vi.stubEnv("TYPEFORM_WEBHOOK_SECRET", SECRET);
+      vi.stubEnv("BLOB_STORE_ID", "store_test");
+      vi.stubEnv("EMAIL_AUTO_SEND", "true");
+      vi.stubEnv("GMAIL_USER", "bourzma.test@gmail.com");
+      vi.stubEnv("GMAIL_APP_PASSWORD", "app-password");
+      files.clear();
+      blob.put.mockImplementation(async (pathname: string, content: Buffer | string) => {
+        files.set(pathname, Buffer.from(content));
+        return { pathname };
+      });
+      blob.head.mockImplementation(async (pathname: string) => {
+        if (!files.has(pathname)) throw new BlobNotFoundError();
+        return { pathname };
+      });
+      blob.get.mockImplementation(async (pathname: string) =>
+        files.has(pathname)
+          ? { statusCode: 200, stream: new Blob([new Uint8Array(files.get(pathname)!)]).stream() }
+          : null,
+      );
+    });
+
+    const signed = async (raw = body) => {
+      const res = await post(raw, sign(raw));
+      return { status: res.status, json: await res.json() };
+    };
+
+    it("emails the stored card to the respondent once", async () => {
+      const { status, json } = await signed();
+      expect(status).toBe(200);
+      expect(json.email).toEqual({ status: "sent", messageId: "<msg-1@gmail.com>" });
+
+      expect(smtp.sendMail).toHaveBeenCalledTimes(1);
+      const message = smtp.sendMail.mock.calls[0][0];
+      expect(message.to).toBe("jane@example.com");
+      expect(message.subject).toBe("Your Beyond Card — THE VISIONARY");
+      // The attachment is exactly the PNG that was stored.
+      expect(Buffer.compare(message.attachments[0].content, files.get(`cards/${BEYOND_ID}.png`)!)).toBe(0);
+
+      const marker = files.get(`cards/${BEYOND_ID}.email-sent.json`)!.toString();
+      expect(JSON.parse(marker)).toMatchObject({ beyondId: BEYOND_ID, messageId: "<msg-1@gmail.com>" });
+      expect(marker).not.toContain("jane@example.com");
+    });
+
+    it("does not email twice when Typeform retries", async () => {
+      await signed();
+      const retry = await signed();
+      expect(retry.json.card.status).toBe("already-generated");
+      expect(retry.json.email).toEqual({ status: "already-sent" });
+      expect(smtp.sendMail).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips submissions without an email address", async () => {
+      const raw = JSON.stringify({
+        ...submission,
+        form_response: {
+          ...submission.form_response,
+          answers: submission.form_response.answers.filter((a) => a.field.ref !== "Email"),
+        },
+      });
+      const { status, json } = await signed(raw);
+      expect(status).toBe(200);
+      expect(json.email).toEqual({ status: "skipped-no-email" });
+      expect(smtp.sendMail).not.toHaveBeenCalled();
+    });
+
+    it("skips when the card could not be stored", async () => {
+      vi.stubEnv("BLOB_STORE_ID", "");
+      const { json } = await signed();
+      expect(json.email).toEqual({ status: "skipped-card-not-stored" });
+      expect(smtp.sendMail).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 so Typeform retries when sending fails, then sends on the retry", async () => {
+      smtp.sendMail.mockRejectedValueOnce(Object.assign(new Error("try later"), { responseCode: 421 }));
+      const first = await signed();
+      expect(first.status).toBe(500);
+      expect(files.has(`cards/${BEYOND_ID}.email-sent.json`)).toBe(false);
+
+      const retry = await signed();
+      expect(retry.status).toBe(200);
+      expect(retry.json.email.status).toBe("sent");
+      expect(smtp.sendMail).toHaveBeenCalledTimes(2);
+
+      const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
+      expect(logged).toContain("[typeform] card email failed");
+      expect(logged).not.toContain("jane@example.com");
     });
   });
 

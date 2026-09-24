@@ -17,7 +17,7 @@ export default function EmailTestPage() {
       <p className="text-xs font-semibold uppercase tracking-[0.24em]">Bourzma · internal</p>
       <h1 className="mt-3 text-3xl font-black uppercase">Beyond Card email test</h1>
       <p className="mt-3 text-sm text-neutral-400">
-        Sends one test email with an already generated card. Automatic emails are off.
+        Sends one test email with an already generated card. It does not affect automatic emails.
       </p>
       <TestEmailForm />
     </main>

@@ -14,6 +14,8 @@ import { isBeyondTypeId, type BeyondTypeId } from "@/lib/beyond/types";
 
 export const cardPathname = (beyondId: string) => `cards/${beyondId}.png`;
 export const cardMetaPathname = (beyondId: string) => `cards/${beyondId}.json`;
+/** Written after the automatic email is sent; its presence prevents a second send. */
+export const emailMarkerPathname = (beyondId: string) => `cards/${beyondId}.email-sent.json`;
 
 /**
  * What the stored card was made from, for the email step. Deliberately no
@@ -51,7 +53,15 @@ export function redact(message: string): string {
 
 export class CardStorageError extends Error {
   constructor(
-    public readonly stage: "exists" | "save" | "read" | "meta-exists" | "meta-save" | "meta-read",
+    public readonly stage:
+      | "exists"
+      | "save"
+      | "read"
+      | "meta-exists"
+      | "meta-save"
+      | "meta-read"
+      | "email-marker-exists"
+      | "email-marker-save",
     public readonly beyondId: string,
     cause: unknown,
   ) {
@@ -160,6 +170,29 @@ export async function readCardMeta(beyondId: string): Promise<CardMeta | null> {
     return meta.beyondId === beyondId && isBeyondTypeId(meta.beyondType) ? meta : null;
   } catch {
     return null;
+  }
+}
+
+export async function emailAlreadySent(beyondId: string): Promise<boolean> {
+  try {
+    await head(emailMarkerPathname(beyondId));
+    return true;
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return false;
+    fail("email-marker-exists", beyondId, error);
+  }
+}
+
+/** Records the send. No recipient address: only ID, time and message ID. */
+export async function markEmailSent(beyondId: string, messageId: string): Promise<void> {
+  try {
+    await put(
+      emailMarkerPathname(beyondId),
+      JSON.stringify({ beyondId, sentAt: new Date().toISOString(), messageId }),
+      { access: "private", contentType: "application/json", addRandomSuffix: false, allowOverwrite: true },
+    );
+  } catch (error) {
+    fail("email-marker-save", beyondId, error);
   }
 }
 

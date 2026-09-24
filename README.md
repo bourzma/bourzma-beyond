@@ -199,21 +199,29 @@ shows the stored PNG; add `&download=1` to download it.
 put/head/get/delete round trip against the real store. Both are disabled
 unless `CARD_PREVIEW_KEY` is set; never cached or indexed.
 
-## Beyond Card email (test only)
+## Beyond Card email
 
-Automatic emails are **off**: the webhook never sends email.
+Sent through a **Gmail account** (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, free,
+no domain; Gmail allows ~500 recipients a day). Each email:
 
-For testing, `/email-test` (or `POST /api/email/test` with header
-`x-email-test-key: <EMAIL_TEST_KEY>` and body `{ "beyondId", "to" }`) sends one
-email for an already stored card:
+- uses the exact stored PNG (`cards/<Beyond ID>.png`, never regenerated) and
+  its card data (`cards/<Beyond ID>.json`: Beyond Type and project IDs, no
+  personal data), shown inline and attached
+- has fixed text from the type and project data
+  (`src/lib/email/beyond-card-email.ts`)
+- is logged by Beyond ID and message ID only, never the recipient
 
-- loads the exact stored PNG (`cards/<Beyond ID>.png`, never regenerated)
-  and its card data (`cards/<Beyond ID>.json`: Beyond Type and project IDs,
-  written by the webhook; no personal data)
-- builds the email in `src/lib/email/beyond-card-email.ts` (fixed text from
-  the type and project data) and sends it through Resend with the card shown
-  inline and attached
-- logs the Beyond ID and Resend email ID, never the recipient
+**Automatic** (`src/lib/email/auto-send.ts`): ON only when
+`EMAIL_AUTO_SEND=true`. After the card is stored, the webhook emails it to the
+Typeform `Email` answer, then writes `cards/<Beyond ID>.email-sent.json`; a
+Typeform retry that finds it does not send again. No email address → skipped.
+If sending fails the webhook returns 500 and Typeform retries. The webhook
+response and logs include `email.status`: `disabled`, `sent`, `already-sent`,
+`skipped-no-email` or `skipped-card-not-stored`.
+
+**Test** (`/email-test`, or `POST /api/email/test` with header
+`x-email-test-key: <EMAIL_TEST_KEY>` and body `{ "beyondId", "to" }`): sends
+one email for a stored card to any address; does not mark the card as emailed.
 
 Cards stored before the card-data file existed get it on the next Typeform
 retry of that submission. `npx tsx scripts/render-sample-email.ts` writes an

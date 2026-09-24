@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { isBeyondId } from "@/lib/card/beyond-id";
 import { NO_STORE_HEADERS } from "@/lib/card/preview-key";
-import { TestEmailError, sendTestBeyondCardEmail } from "@/lib/email/send-test-email";
+import { CardEmailError, sendBeyondCardEmail } from "@/lib/email/send-card-email";
 
 /*
  * TEST ONLY: sends one Beyond Card email for an already stored card.
@@ -10,8 +10,8 @@ import { TestEmailError, sendTestBeyondCardEmail } from "@/lib/email/send-test-e
  *   Header: x-email-test-key: <EMAIL_TEST_KEY>
  *   Body:   { "beyondId": "BYD-XXXX-XXXX", "to": "you@example.com" }
  *
- * Disabled (404) unless EMAIL_TEST_KEY is set. Automatic emails for Typeform
- * submissions are NOT enabled; the webhook never calls this.
+ * Disabled (404) unless EMAIL_TEST_KEY is set. Does not mark the card as
+ * emailed, so it never affects the automatic send.
  */
 
 const EMAIL_PATTERN = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]{2,}$/;
@@ -45,17 +45,14 @@ export async function POST(request: Request) {
   if (!EMAIL_PATTERN.test(to) || to.length > 254) return json({ error: "to must be one email address" }, 400);
 
   try {
-    const sent = await sendTestBeyondCardEmail({ beyondId, to });
+    const sent = await sendBeyondCardEmail({ beyondId, to });
     // Never log the recipient address.
     console.log("[email-test] sent", JSON.stringify({ beyondId, ...sent }));
     return json({ ok: true, beyondId, ...sent }, 200);
   } catch (error) {
-    const status = error instanceof TestEmailError ? error.status : 500;
-    console.error(
-      "[email-test] failed",
-      JSON.stringify({ beyondId, status, error: error instanceof Error ? error.name : "Error" }),
-    );
-    // The tester sees the reason (e.g. Resend's sandbox restriction).
-    return json({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }, status);
+    const status = error instanceof CardEmailError ? error.status : 500;
+    const message = error instanceof CardEmailError ? error.message : "Unknown error";
+    console.error("[email-test] failed", JSON.stringify({ beyondId, status, error: message }));
+    return json({ ok: false, error: message }, status);
   }
 }
