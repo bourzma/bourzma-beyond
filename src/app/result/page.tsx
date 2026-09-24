@@ -50,8 +50,11 @@ function ProjectSymbol({ project }: { project: BeyondProject }) {
 function Masthead() {
   return (
     <header className={styles.masthead}>
-      {/* Text stand-in for the Bourzma wordmark; swap for the logo file when available. */}
-      <p className={styles.wordmark}>&ldquo;BOURZMA&rdquo;</p>
+      <h2 className={styles.wordmark}>
+        {/* The official logo; the only green on the page. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/bourzma-logo.png" width={411} height={32} alt="Bourzma" />
+      </h2>
       <p className={styles.edition}>Beyond the Ordinary</p>
     </header>
   );

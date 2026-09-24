@@ -1,14 +1,13 @@
 @import "tailwindcss";
 
 /*
- * Bourzma: white on black, as in the Typeform, with the signature green
- * reserved for the wordmark. No light variant by design.
+ * Bourzma: white on black, as in the Typeform. The signature green lives
+ * only in the logo file (public/brand), never in CSS. No light variant.
  */
 :root {
   --paper: #000000;
   --ink: #ffffff;
   --muted: #9a9a9a;
-  --signal: #6bff38;
   color-scheme: dark;
 }
 

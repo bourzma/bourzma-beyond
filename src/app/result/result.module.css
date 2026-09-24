@@ -1,6 +1,6 @@
 /*
  * /result: continues the Typeform's ending screen. White on black,
- * centred, the green wordmark on top. The two dominant elements are the
+ * centred, the Bourzma logo on top. The two dominant elements are the
  * type name and the project symbol.
  */
 
@@ -17,7 +17,7 @@
   text-align: center;
 }
 
-/* Masthead: “BOURZMA” wordmark, as on the Typeform ------------------- */
+/* Masthead: the Bourzma logo, as on the Typeform ---------------------- */
 
 .masthead {
   padding: clamp(2.5rem, 8vh, 4rem) var(--gutter) 0;
@@ -25,12 +25,13 @@
 
 .wordmark {
   margin: 0;
-  color: var(--signal);
-  font-weight: 900;
-  font-stretch: 125%;
-  font-size: clamp(1.75rem, 9vw, 3rem);
-  line-height: 1;
-  letter-spacing: 0.04em;
+  line-height: 0;
+}
+
+/* Never wider than the source file (411px), to keep it sharp. */
+.wordmark img {
+  width: min(82vw, 411px);
+  height: auto;
 }
 
 .edition {
