@@ -4,9 +4,11 @@ import {
   calculateScores,
   parseAnswers,
   pickBeyondType,
+  rankTypes,
   scoreAnswers,
   type Answers,
 } from "./scoring";
+import { BEYOND_TYPE_IDS, TIE_BREAK_ORDER } from "./types";
 
 const answers = (a: Partial<Answers> = {}): Answers => ({
   Social: 3,
@@ -16,6 +18,16 @@ const answers = (a: Partial<Answers> = {}): Answers => ({
   Beyond_default: 3,
   ...a,
 });
+
+function* allAnswers(): Generator<Answers> {
+  const values = [1, 2, 3, 4, 5];
+  for (const Social of values)
+    for (const Curiosity of values)
+      for (const Execution of values)
+        for (const Connection of values)
+          for (const Beyond_default of values)
+            yield { Social, Curiosity, Execution, Connection, Beyond_default };
+}
 
 describe("calculateScores", () => {
   it("applies each formula", () => {
@@ -41,29 +53,47 @@ describe("pickBeyondType", () => {
     expect(pickBeyondType(a)).toBe(expected);
   });
 
-  it("breaks ties by the fixed type order", () => {
-    // All equal: visionary is listed first.
-    expect(pickBeyondType(answers())).toBe("visionary");
-    // Curiosity = Beyond_default makes Visionary and Rulebreaker equal.
-    expect(pickBeyondType(answers({ Curiosity: 5, Beyond_default: 5 }))).toBe("visionary");
-    // Maker = Catalyst = 5.
-    expect(pickBeyondType(answers({ Social: 5, Execution: 5, Connection: 1 }))).toBe("maker");
+});
+
+describe("rankTypes (tie-breaking)", () => {
+  it("has no strong sides without a tie", () => {
+    expect(rankTypes(answers({ Execution: 5 }))).toEqual({ beyondType: "maker", strongSides: [] });
   });
 
-  it("is deterministic for every possible input", () => {
-    const values = [1, 2, 3, 4, 5];
-    for (const Social of values)
-      for (const Curiosity of values)
-        for (const Execution of values)
-          for (const Connection of values)
-            for (const Beyond_default of values) {
-              const a = { Social, Curiosity, Execution, Connection, Beyond_default };
-              const scores = calculateScores(a);
-              const type = pickBeyondType(a);
-              const max = Math.max(...Object.values(scores));
-              expect(scores[type]).toBeCloseTo(max, 10);
-              expect(pickBeyondType(a)).toBe(type);
-            }
+  it.each([
+    // Curiosity = Beyond_default: Visionary and Rulebreaker tie.
+    [answers({ Curiosity: 5, Beyond_default: 5 }), "visionary", ["rulebreaker"]],
+    // Social = Execution: Maker and Catalyst tie.
+    [answers({ Social: 5, Execution: 5, Connection: 1 }), "catalyst", ["maker"]],
+    // Connection = Execution: Connector and Catalyst tie.
+    [answers({ Social: 5, Connection: 4, Execution: 4, Curiosity: 1, Beyond_default: 1 }), "catalyst", ["connector"]],
+    // All equal: every type ties.
+    [answers(), "visionary", ["rulebreaker", "catalyst", "connector", "maker"]],
+  ] as const)("follows the tie-break order (%#)", (a, type, sides) => {
+    expect(rankTypes(a)).toEqual({ beyondType: type, strongSides: sides });
+  });
+
+  it("is correct and deterministic for every possible input", () => {
+    for (const a of allAnswers()) {
+      const scores = calculateScores(a);
+      const max = Math.max(...Object.values(scores));
+      const tied = TIE_BREAK_ORDER.filter((id) => Math.abs(scores[id] - max) < 1e-9);
+      const { beyondType, strongSides } = rankTypes(a);
+      expect([beyondType, ...strongSides]).toEqual(tied);
+      expect(rankTypes(a)).toEqual({ beyondType, strongSides });
+    }
+  });
+
+  it("keeps the agreed distribution over all 3,125 answer sets", () => {
+    const counts = Object.fromEntries(BEYOND_TYPE_IDS.map((id) => [id, 0]));
+    for (const a of allAnswers()) counts[pickBeyondType(a)]++;
+    expect(counts).toEqual({
+      visionary: 688,
+      connector: 659,
+      maker: 801,
+      catalyst: 486,
+      rulebreaker: 491,
+    });
   });
 });
 
@@ -86,9 +116,13 @@ describe("parseAnswers", () => {
 });
 
 describe("scoreAnswers", () => {
-  it("returns answers, scores and the type", () => {
+  it("returns answers, scores, the type and strong sides", () => {
     const result = scoreAnswers(answers({ Execution: 5 }));
     expect(result.beyondType).toBe("maker");
+    expect(result.strongSides).toEqual([]);
     expect(result.scores.maker).toBe(5);
+    expect(scoreAnswers(answers({ Curiosity: 5, Beyond_default: 5 })).strongSides).toEqual([
+      "rulebreaker",
+    ]);
   });
 });

@@ -8,6 +8,8 @@ import {
 } from "@/lib/beyond/scoring";
 import {
   BEYOND_TYPE_IDS,
+  TIE_BREAK_ORDER,
+  describeStrongSides,
   getBeyondType,
   isBeyondTypeId,
   type BeyondTypeId,
@@ -16,9 +18,10 @@ import {
 /*
  * Two ways to open this page:
  *   /result?type=maker                         shows a type directly
+ *   /result?type=maker&sides=catalyst          ...with strong sides (preview)
  *   /result?Social=4&Curiosity=5&Execution=2&Connection=3&Beyond_default=5
  *                                              scores the answers first
- * The second form suits a Typeform "redirect on completion" URL.
+ * The last form suits a Typeform "redirect on completion" URL.
  * Unstyled on purpose: the final visual design comes later.
  */
 export default async function ResultPage(props: PageProps<"/result">) {
@@ -29,16 +32,22 @@ export default async function ResultPage(props: PageProps<"/result">) {
   };
 
   let typeId: BeyondTypeId | null = null;
+  let strongSides: BeyondTypeId[] = [];
   let score: ScoreResult | null = null;
   let problems: string[] = [];
 
   const requestedType = first("type")?.toLowerCase();
   if (isBeyondTypeId(requestedType)) {
     typeId = requestedType;
+    const requestedSides = (first("sides") ?? "").toLowerCase().split(",");
+    strongSides = TIE_BREAK_ORDER.filter(
+      (id) => id !== requestedType && requestedSides.includes(id),
+    );
   } else if (FIELD_REFS.some((ref) => first(ref) !== undefined)) {
     try {
       score = scoreAnswers(Object.fromEntries(FIELD_REFS.map((ref) => [ref, first(ref)])));
       typeId = score.beyondType;
+      strongSides = score.strongSides;
     } catch (error) {
       if (!(error instanceof InvalidAnswersError)) throw error;
       problems = error.problems;
@@ -81,6 +90,9 @@ export default async function ResultPage(props: PageProps<"/result">) {
           {type.name}
         </h1>
         <p className="text-lg">“{type.tagline}”</p>
+        {strongSides.length > 0 && (
+          <p data-strong-sides={strongSides.join(",")}>{describeStrongSides(strongSides)}</p>
+        )}
       </section>
 
       {score && (

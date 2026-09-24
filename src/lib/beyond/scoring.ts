@@ -1,4 +1,4 @@
-import { BEYOND_TYPE_IDS, type BeyondTypeId } from "./types";
+import { BEYOND_TYPE_IDS, TIE_BREAK_ORDER, type BeyondTypeId } from "./types";
 
 /** Typeform field references, exactly as configured in the form. */
 export const FIELD_REFS = [
@@ -20,6 +20,13 @@ export interface ScoreResult {
   answers: Answers;
   scores: TypeScores;
   beyondType: BeyondTypeId;
+  /** Other types that tied for the highest score, in tie-break order. */
+  strongSides: BeyondTypeId[];
+}
+
+export interface TypeRanking {
+  beyondType: BeyondTypeId;
+  strongSides: BeyondTypeId[];
 }
 
 export const MIN_ANSWER = 1;
@@ -88,16 +95,19 @@ export function calculateScores(answers: Answers): TypeScores {
 }
 
 /**
- * The highest-scoring type. On a tie, the type listed first in
- * BEYOND_TYPE_IDS wins.
+ * Step 1: the highest score wins.
+ * Step 2: if several types share it, the first of them in TIE_BREAK_ORDER
+ * wins and the others become strong sides.
  */
-export function pickBeyondType(answers: Answers): BeyondTypeId {
+export function rankTypes(answers: Answers): TypeRanking {
   const scaled = scaledScores(answers);
-  let best: BeyondTypeId = BEYOND_TYPE_IDS[0];
-  for (const id of BEYOND_TYPE_IDS) {
-    if (scaled[id] > scaled[best]) best = id;
-  }
-  return best;
+  const top = Math.max(...TIE_BREAK_ORDER.map((id) => scaled[id]));
+  const [beyondType, ...strongSides] = TIE_BREAK_ORDER.filter((id) => scaled[id] === top);
+  return { beyondType, strongSides };
+}
+
+export function pickBeyondType(answers: Answers): BeyondTypeId {
+  return rankTypes(answers).beyondType;
 }
 
 export function scoreAnswers(input: Partial<Record<string, unknown>>): ScoreResult {
@@ -105,6 +115,6 @@ export function scoreAnswers(input: Partial<Record<string, unknown>>): ScoreResu
   return {
     answers,
     scores: calculateScores(answers),
-    beyondType: pickBeyondType(answers),
+    ...rankTypes(answers),
   };
 }
