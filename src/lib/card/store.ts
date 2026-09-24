@@ -1,17 +1,66 @@
-import { BlobNotFoundError, get, head, put } from "@vercel/blob";
+import { BlobNotFoundError, del, get, head, put } from "@vercel/blob";
 
 /*
  * Cards contain names and company names, so they are stored as PRIVATE
  * Vercel Blobs, one file per submission: cards/<Beyond ID>.png. They are only
  * served through the key-protected /api/cards/[beyondId] route.
- * Needs BLOB_READ_WRITE_TOKEN (set automatically when a Blob store is
- * connected to the Vercel project).
+ *
+ * Authentication: the connected private Blob store provides BLOB_STORE_ID,
+ * and @vercel/blob signs requests with the function's Vercel OIDC token
+ * automatically (no BLOB_READ_WRITE_TOKEN needed). A classic
+ * BLOB_READ_WRITE_TOKEN still works if one is ever set.
  */
 
 export const cardPathname = (beyondId: string) => `cards/${beyondId}.png`;
 
+export type BlobAuthMode = "oidc" | "read-write-token" | "none";
+
+/** How @vercel/blob will authenticate, from configuration only (no secrets). */
+export function blobAuthMode(): BlobAuthMode {
+  if (process.env.BLOB_STORE_ID?.trim()) return "oidc";
+  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) return "read-write-token";
+  return "none";
+}
+
 export function isCardStorageConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return blobAuthMode() !== "none";
+}
+
+/** Removes anything that could be a credential from an error message. */
+export function redact(message: string): string {
+  return message
+    .replace(/vercel_blob_rw_[A-Za-z0-9_-]+/g, "[redacted-token]")
+    .replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?/g, "[redacted-jwt]")
+    .replace(/(authorization|token|secret)(["'\s:=]+)[^\s"',}]+/gi, "$1$2[redacted]");
+}
+
+export class CardStorageError extends Error {
+  constructor(
+    public readonly stage: "exists" | "save" | "read",
+    public readonly beyondId: string,
+    cause: unknown,
+  ) {
+    const name = cause instanceof Error ? cause.name : "Error";
+    const message = redact(cause instanceof Error ? cause.message : String(cause));
+    super(`Blob ${stage} failed (${name}): ${message}`);
+    this.name = "CardStorageError";
+  }
+}
+
+/** Logs a storage failure with no tokens and no personal data, then throws. */
+function fail(stage: CardStorageError["stage"], beyondId: string, cause: unknown): never {
+  const error = new CardStorageError(stage, beyondId, cause);
+  console.error(
+    "[blob] storage failure",
+    JSON.stringify({
+      stage,
+      beyondId,
+      auth: blobAuthMode(),
+      error: error.message,
+      status: (cause as { status?: number })?.status ?? null,
+    }),
+  );
+  throw error;
 }
 
 /** True if a card for this Beyond ID was already stored. */
@@ -21,23 +70,82 @@ export async function cardExists(beyondId: string): Promise<boolean> {
     return true;
   } catch (error) {
     if (error instanceof BlobNotFoundError) return false;
-    throw error;
+    fail("exists", beyondId, error);
   }
 }
 
 export async function saveCard(beyondId: string, png: Buffer): Promise<void> {
-  await put(cardPathname(beyondId), png, {
-    access: "private",
-    contentType: "image/png",
-    addRandomSuffix: false,
-    // Same ID = same submission = same card, so a concurrent retry may overwrite.
-    allowOverwrite: true,
-  });
+  try {
+    await put(cardPathname(beyondId), png, {
+      access: "private",
+      contentType: "image/png",
+      addRandomSuffix: false,
+      // Same ID = same submission = same card, so a concurrent retry may overwrite.
+      allowOverwrite: true,
+    });
+  } catch (error) {
+    fail("save", beyondId, error);
+  }
 }
 
 /** The stored PNG as a stream, or null if there is no card with this ID. */
 export async function readCard(beyondId: string): Promise<ReadableStream<Uint8Array> | null> {
-  const result = await get(cardPathname(beyondId), { access: "private" });
-  if (!result || result.statusCode !== 200) return null;
-  return result.stream;
+  try {
+    const result = await get(cardPathname(beyondId), { access: "private" });
+    if (!result || result.statusCode !== 200) return null;
+    return result.stream;
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return null;
+    fail("read", beyondId, error);
+  }
+}
+
+/**
+ * Round trip against the real store: private put, head, get, delete of a
+ * tiny test file. Reports which step failed, without secrets.
+ */
+export async function checkStorage(): Promise<{
+  ok: boolean;
+  auth: BlobAuthMode;
+  steps: Record<string, string>;
+}> {
+  const auth = blobAuthMode();
+  const steps: Record<string, string> = {};
+  const pathname = `healthchecks/storage-check-${Date.now()}.txt`;
+  const content = `bourzma-beyond storage check ${new Date().toISOString()}`;
+
+  const step = async (name: string, run: () => Promise<string>) => {
+    try {
+      steps[name] = await run();
+      return true;
+    } catch (error) {
+      const message = redact(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+      steps[name] = `failed: ${message}`;
+      console.error("[blob] storage check failed", JSON.stringify({ step: name, auth, error: message }));
+      return false;
+    }
+  };
+
+  const ok =
+    (await step("put (private)", async () => {
+      await put(pathname, content, { access: "private", contentType: "text/plain", addRandomSuffix: false });
+      return "ok";
+    })) &&
+    (await step("head", async () => {
+      await head(pathname);
+      return "ok";
+    })) &&
+    (await step("get (private)", async () => {
+      const result = await get(pathname, { access: "private" });
+      if (!result || result.statusCode !== 200) throw new Error("no content returned");
+      const text = await new Response(result.stream).text();
+      if (text !== content) throw new Error("content mismatch");
+      return "ok";
+    })) &&
+    (await step("delete", async () => {
+      await del(pathname);
+      return "ok";
+    }));
+
+  return { ok, auth, steps };
 }

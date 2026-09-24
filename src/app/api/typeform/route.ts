@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       }),
     );
     if (!card.stored) {
-      console.warn("[typeform] card generated but NOT stored: BLOB_READ_WRITE_TOKEN is not set");
+      console.warn("[typeform] card generated but NOT stored: no Blob store connected (BLOB_STORE_ID)");
     }
 
     return Response.json({

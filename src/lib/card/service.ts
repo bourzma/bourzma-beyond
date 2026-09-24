@@ -9,7 +9,7 @@ export type CardStatus =
   | "generated"
   /** A card for this submission was stored before (Typeform retry): reused. */
   | "already-generated"
-  /** Generated, but not stored: no Blob storage configured (e.g. locally). */
+  /** Generated, but not stored: no Blob store connected (e.g. locally). */
   | "generated-not-stored";
 
 export interface CardResult {

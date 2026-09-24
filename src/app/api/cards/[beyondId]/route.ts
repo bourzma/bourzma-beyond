@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import { isBeyondId } from "@/lib/card/beyond-id";
+import { NO_STORE_HEADERS, checkPreviewKey } from "@/lib/card/preview-key";
 import { readCard } from "@/lib/card/store";
 
 /*
@@ -9,37 +9,23 @@ import { readCard } from "@/lib/card/store";
  * Disabled (404) unless CARD_PREVIEW_KEY is set. Cards contain personal data,
  * so responses are never cached or indexed.
  */
-
-const NO_STORE = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" };
-
-function keyMatches(given: string | null, expected: string): boolean {
-  if (!given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function GET(request: Request, ctx: RouteContext<"/api/cards/[beyondId]">) {
-  const expected = process.env.CARD_PREVIEW_KEY;
-  if (!expected) return new Response("Not found", { status: 404, headers: NO_STORE });
-
-  const url = new URL(request.url);
-  if (!keyMatches(url.searchParams.get("key"), expected)) {
-    return new Response("Unauthorized", { status: 401, headers: NO_STORE });
-  }
+  const access = checkPreviewKey(request);
+  if (access === "disabled") return new Response("Not found", { status: 404, headers: NO_STORE_HEADERS });
+  if (access === "unauthorized") return new Response("Unauthorized", { status: 401, headers: NO_STORE_HEADERS });
 
   const { beyondId } = await ctx.params;
   if (!isBeyondId(beyondId)) {
-    return new Response("Invalid Beyond ID", { status: 400, headers: NO_STORE });
+    return new Response("Invalid Beyond ID", { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const stream = await readCard(beyondId);
-  if (!stream) return new Response("No card for this Beyond ID", { status: 404, headers: NO_STORE });
+  if (!stream) return new Response("No card for this Beyond ID", { status: 404, headers: NO_STORE_HEADERS });
 
-  const disposition = url.searchParams.get("download") ? "attachment" : "inline";
+  const disposition = new URL(request.url).searchParams.get("download") ? "attachment" : "inline";
   return new Response(stream, {
     headers: {
-      ...NO_STORE,
+      ...NO_STORE_HEADERS,
       "Content-Type": "image/png",
       "Content-Disposition": `${disposition}; filename="beyond-card-${beyondId}.png"`,
     },

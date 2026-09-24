@@ -188,9 +188,16 @@ Typeform's response token, so a retried webhook finds the stored card and
 creates no duplicate. If generation or storage fails the webhook returns 500
 and Typeform retries. The response and logs include `card` (ID and status).
 
+**Storage auth:** the private Blob store provides `BLOB_STORE_ID`; uploads
+authenticate with Vercel OIDC automatically (no `BLOB_READ_WRITE_TOKEN`).
+Failures are logged as `[blob] storage failure` with the step, Beyond ID and
+a redacted error: never tokens or personal data.
+
 **Preview (testing):** `GET /api/cards/<Beyond ID>?key=<CARD_PREVIEW_KEY>`
-shows the stored PNG; add `&download=1` to download it. Disabled unless
-`CARD_PREVIEW_KEY` is set; never cached or indexed.
+shows the stored PNG; add `&download=1` to download it.
+`GET /api/cards/storage-check?key=<CARD_PREVIEW_KEY>` does a private
+put/head/get/delete round trip against the real store. Both are disabled
+unless `CARD_PREVIEW_KEY` is set; never cached or indexed.
 
 ## Development
 

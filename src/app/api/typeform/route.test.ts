@@ -109,7 +109,9 @@ describe("POST /api/typeform", () => {
 
     beforeEach(() => {
       vi.stubEnv("TYPEFORM_WEBHOOK_SECRET", SECRET);
-      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+      // Private store with OIDC auth: only BLOB_STORE_ID, no read-write token.
+      vi.stubEnv("BLOB_STORE_ID", "store_test");
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
     });
 
     it("generates and stores the card for a new submission", async () => {
@@ -151,18 +153,24 @@ describe("POST /api/typeform", () => {
       expect(json.card.status).toBe("generated");
     });
 
-    it("still generates the card when storage is not configured", async () => {
-      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    it("still generates the card when no Blob store is connected", async () => {
+      vi.stubEnv("BLOB_STORE_ID", "");
       const { status, json } = await signed();
       expect(status).toBe(200);
       expect(json.card).toMatchObject({ beyondId: BEYOND_ID, status: "generated-not-stored", stored: false });
       expect(blob.put).not.toHaveBeenCalled();
     });
 
-    it("returns 500 so Typeform retries when storage fails", async () => {
-      blob.put.mockRejectedValue(new Error("storage down"));
+    it("returns 500 so Typeform retries when storage fails, logging no secrets", async () => {
+      blob.put.mockRejectedValue(new Error("Access denied for token vercel_blob_rw_abc123_SECRET"));
       const { status } = await signed();
       expect(status).toBe(500);
+      const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
+      expect(logged).toContain("[blob] storage failure");
+      expect(logged).toContain('"stage":"save"');
+      expect(logged).toContain('"auth":"oidc"');
+      expect(logged).not.toContain("vercel_blob_rw_abc123_SECRET");
+      for (const personal of ["Jane", "jane@example.com", "Example Studio"]) expect(logged).not.toContain(personal);
     });
 
     it("rejects submissions without a response token", async () => {
