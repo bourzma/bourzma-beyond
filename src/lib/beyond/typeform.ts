@@ -27,6 +27,41 @@ export const PROFESSIONAL_FIELD_REFS = {
   workplaceType: "Workplace_type",
 } as const satisfies Record<keyof ProfessionalContext, string>;
 
+/**
+ * The exact answer options of the two single-choice professional questions,
+ * as configured in Typeform. Project relevance lists may only use these.
+ */
+export const LOOKING_FOR_OPTIONS = [
+  "New collaborations",
+  "Creative partners",
+  "Brands",
+  "Clients",
+  "Event opportunities",
+  "Designers & creators",
+  "Production",
+  "Marketing & communication",
+  "Sustainability projects",
+  "Inspiration",
+  "New people",
+  "Something unexpected",
+] as const;
+
+export const WORKPLACE_TYPE_OPTIONS = [
+  "Brand / Company",
+  "Creative / Advertising Agency",
+  "Media Agency",
+  "PR / Communications Agency",
+  "Event Agency",
+  "Design Studio",
+  "Startup",
+  "Public Sector / Organisation",
+  "Freelance / Independent",
+  "Other",
+] as const;
+
+export type LookingForOption = (typeof LOOKING_FOR_OPTIONS)[number];
+export type WorkplaceTypeOption = (typeof WORKPLACE_TYPE_OPTIONS)[number];
+
 /** Every selected label (plus any "Other" text) of one answer. */
 function answerValues(answer: TypeformAnswer): string[] {
   const values = [

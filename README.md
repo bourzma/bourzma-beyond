@@ -87,7 +87,13 @@ project: `name`, `category`, `bestAlignedWith`, `shortLine`, `whatWeDid`,
   Images can be full URLs or files placed in `public/projects/` and written as
   `/projects/<file>.jpg`.
 - `relevantLookingFor` and `relevantWorkplaceTypes` hold **exact Typeform
-  option labels**. An empty list means that field never adds points.
+  option labels**. An empty list means that field never adds points. The
+  official options are listed in `src/lib/beyond/typeform.ts`
+  (`LOOKING_FOR_OPTIONS`, `WORKPLACE_TYPE_OPTIONS`); a test fails if a project
+  uses any other label. **If an option is renamed in Typeform, rename it in
+  both places.** Workplace_type "Other" is deliberately not mapped.
+- The current mapping was approved on 2026-09-24. `matching.test.ts` pins the
+  resulting project pair for every Beyond Type × Looking_for answer.
 
 ### Matching (`src/lib/beyond/matching.ts`)
 

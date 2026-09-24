@@ -15,13 +15,15 @@ export interface BeyondProject {
   videoUrl: string | null;
   ctaUrl: string | null;
   /**
-   * Typeform option labels, copied exactly, that make this project a better
+   * Typeform option labels, copied exactly from LOOKING_FOR_OPTIONS and
+   * WORKPLACE_TYPE_OPTIONS in typeform.ts, that make this project a better
    * fit (see matching.ts). Empty list = this field never adds points.
    */
   relevantWorkplaceTypes: string[];
   relevantLookingFor: string[];
 }
 
+// Looking_for and Workplace_type mapping approved by Bourzma on 2026-09-24.
 export const PROJECTS: BeyondProject[] = [
   {
     id: "bourzma-boutique",
@@ -35,9 +37,19 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
-    // TODO: fill with exact Typeform option labels.
-    relevantWorkplaceTypes: [],
-    relevantLookingFor: [],
+    relevantWorkplaceTypes: [
+      "Design Studio",
+      "Public Sector / Organisation",
+      "Freelance / Independent",
+    ],
+    relevantLookingFor: [
+      "New collaborations",
+      "Creative partners",
+      "Designers & creators",
+      "Sustainability projects",
+      "Inspiration",
+      "New people",
+    ],
   },
   {
     id: "worlds-largest-basketball-jersey",
@@ -51,9 +63,19 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
-    // TODO: fill with exact Typeform option labels.
-    relevantWorkplaceTypes: [],
-    relevantLookingFor: [],
+    relevantWorkplaceTypes: [
+      "Brand / Company",
+      "Creative / Advertising Agency",
+      "PR / Communications Agency",
+      "Startup",
+    ],
+    relevantLookingFor: [
+      "Brands",
+      "Clients",
+      "Event opportunities",
+      "Production",
+      "Something unexpected",
+    ],
   },
   {
     id: "delivery-van-redesign",
@@ -68,9 +90,20 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
-    // TODO: fill with exact Typeform option labels.
-    relevantWorkplaceTypes: [],
-    relevantLookingFor: [],
+    relevantWorkplaceTypes: [
+      "Brand / Company",
+      "Creative / Advertising Agency",
+      "Media Agency",
+      "Design Studio",
+      "Startup",
+    ],
+    relevantLookingFor: [
+      "Brands",
+      "Clients",
+      "Designers & creators",
+      "Production",
+      "Marketing & communication",
+    ],
   },
   {
     id: "gaisma-tunela-gala",
@@ -84,9 +117,18 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
-    // TODO: fill with exact Typeform option labels.
-    relevantWorkplaceTypes: [],
-    relevantLookingFor: [],
+    relevantWorkplaceTypes: [
+      "PR / Communications Agency",
+      "Event Agency",
+      "Public Sector / Organisation",
+    ],
+    relevantLookingFor: [
+      "Creative partners",
+      "Event opportunities",
+      "Sustainability projects",
+      "Inspiration",
+      "Something unexpected",
+    ],
   },
   {
     id: "bourzma-x-shopping-mall",
@@ -100,8 +142,14 @@ export const PROJECTS: BeyondProject[] = [
     image: null,
     videoUrl: null,
     ctaUrl: null,
-    // TODO: fill with exact Typeform option labels.
-    relevantWorkplaceTypes: [],
-    relevantLookingFor: [],
+    relevantWorkplaceTypes: ["Brand / Company", "Media Agency", "Event Agency"],
+    relevantLookingFor: [
+      "New collaborations",
+      "Brands",
+      "Clients",
+      "Event opportunities",
+      "Marketing & communication",
+      "New people",
+    ],
   },
 ];

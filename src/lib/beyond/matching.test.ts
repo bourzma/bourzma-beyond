@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_CONTEXT, matchProjects, type ProfessionalContext } from "./matching";
 import { PROJECTS, type BeyondProject } from "./projects";
+import { LOOKING_FOR_OPTIONS, WORKPLACE_TYPE_OPTIONS } from "./typeform";
 import { BEYOND_TYPE_IDS, type BeyondTypeId } from "./types";
 
-// Test-only labels. The real ones come from the Typeform.
+// TEST_* labels below are test-only and never match the real options.
 const withRelevance = (overrides: Record<string, Partial<BeyondProject>>): BeyondProject[] =>
   PROJECTS.map((p) => ({ ...p, ...overrides[p.id] }));
 
@@ -30,6 +31,48 @@ describe("matchProjects with the Beyond Type only", () => {
     ["rulebreaker", "gaisma-tunela-gala", "bourzma-boutique"],
   ] as const)("%s → %s, also %s", (type, primary, secondary) => {
     expect(pick(type)).toEqual([primary, secondary]);
+  });
+});
+
+describe("matchProjects with the approved Looking_for mapping", () => {
+  const B = "bourzma-boutique";
+  const J = "worlds-largest-basketball-jersey";
+  const V = "delivery-van-redesign";
+  const G = "gaisma-tunela-gala";
+  const M = "bourzma-x-shopping-mall";
+
+  // [Looking_for, visionary, connector, maker, catalyst, rulebreaker]
+  // Each cell: [primary, secondary]. Approved 2026-09-24.
+  const table: [string, ...[string, string][]][] = [
+    ["New collaborations", [B, M], [M, B], [J, V], [M, V], [G, B]],
+    ["Creative partners", [B, G], [B, M], [J, V], [G, V], [G, B]],
+    ["Brands", [V, B], [M, B], [J, V], [V, J], [G, V]],
+    ["Clients", [V, B], [M, B], [J, V], [V, J], [G, V]],
+    ["Event opportunities", [B, G], [M, B], [J, V], [J, G], [G, B]],
+    ["Designers & creators", [B, V], [B, M], [J, V], [V, J], [G, B]],
+    ["Production", [V, B], [M, B], [J, V], [V, J], [G, V]],
+    ["Marketing & communication", [V, B], [M, B], [J, V], [V, M], [G, V]],
+    ["Sustainability projects", [B, G], [B, M], [J, V], [G, V], [G, B]],
+    ["Inspiration", [B, G], [B, M], [J, V], [G, V], [G, B]],
+    ["New people", [B, M], [M, B], [J, V], [M, V], [G, B]],
+    ["Something unexpected", [B, G], [M, B], [J, V], [J, G], [G, B]],
+  ];
+
+  it.each(table)("%s", (lookingFor, ...cells) => {
+    BEYOND_TYPE_IDS.forEach((type, i) => {
+      expect(pick(type, { ...EMPTY_CONTEXT, lookingFor: [lookingFor] }), type).toEqual(cells[i]);
+    });
+  });
+
+  it("gives a valid pair for every type × Looking_for × Workplace_type", () => {
+    for (const type of BEYOND_TYPE_IDS)
+      for (const lookingFor of LOOKING_FOR_OPTIONS)
+        for (const workplaceType of WORKPLACE_TYPE_OPTIONS) {
+          const m = matchProjects(type, { lookingFor: [lookingFor], workplaceType: [workplaceType] });
+          expect(m.primary.bestAlignedWith).toContain(type);
+          expect(m.secondary?.bestAlignedWith).toContain(type);
+          expect(m.secondary!.id).not.toBe(m.primary.id);
+        }
   });
 });
 
