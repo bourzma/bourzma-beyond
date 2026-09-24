@@ -51,6 +51,7 @@ describe("POST /api/typeform", () => {
     const json = await res.json();
 
     expect(json.contact).toEqual({
+      fullName: "Jane Example",
       firstName: "Jane",
       lastName: "Example",
       company: "Example Studio",

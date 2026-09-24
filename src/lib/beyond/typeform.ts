@@ -30,6 +30,9 @@ export interface TypeformWebhookPayload {
 
 /** Typeform field refs of the contact questions. Never used for matching. */
 export const CONTACT_FIELD_REFS = {
+  /** Single full-name question (preferred). "Full_name" is accepted too. */
+  name: "Name",
+  /** Older two-question version, still supported. */
   firstName: "First_name",
   lastName: "Last_name",
   company: "Company",
@@ -40,6 +43,11 @@ export const CONTACT_FIELD_REFS = {
 } as const;
 
 export interface ContactDetails {
+  /**
+   * The name as shown on the Beyond Card: the single Name question, or
+   * First_name + Last_name joined when the form still asks them separately.
+   */
+  fullName: string | null;
   firstName: string | null;
   lastName: string | null;
   company: string | null;
@@ -134,10 +142,16 @@ export function extractContactDetails(payload: TypeformWebhookPayload): ContactD
   const answers = payload.form_response?.answers ?? [];
   const answerFor = (ref: string) => answers.find((a) => a.field?.ref === ref);
   const consent = answerFor(CONTACT_FIELD_REFS.marketingConsent);
+  const firstName = answerText(answerFor(CONTACT_FIELD_REFS.firstName));
+  const lastName = answerText(answerFor(CONTACT_FIELD_REFS.lastName));
+  const singleName =
+    answerText(answerFor(CONTACT_FIELD_REFS.name)) ?? answerText(answerFor("Full_name"));
+  const joined = [firstName, lastName].filter(Boolean).join(" ");
 
   return {
-    firstName: answerText(answerFor(CONTACT_FIELD_REFS.firstName)),
-    lastName: answerText(answerFor(CONTACT_FIELD_REFS.lastName)),
+    fullName: singleName ?? (joined || null),
+    firstName,
+    lastName,
     company: answerText(answerFor(CONTACT_FIELD_REFS.company)),
     role: answerText(answerFor(CONTACT_FIELD_REFS.role)),
     email: answerText(answerFor(CONTACT_FIELD_REFS.email)),

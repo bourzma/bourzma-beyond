@@ -117,6 +117,15 @@
   -webkit-text-stroke: 0.02em currentColor;
 }
 
+.cardHint {
+  max-width: 26ch;
+  margin: 1rem auto 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 /* Entrance: the type first, then the card notice. ----------------------- */
 
 @media (prefers-reduced-motion: no-preference) {

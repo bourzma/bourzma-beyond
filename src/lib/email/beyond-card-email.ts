@@ -6,11 +6,12 @@ import { getBeyondType, type BeyondTypeId } from "@/lib/beyond/types";
  * project data (no AI text):
  *
  *   [Bourzma logo] / BEYOND THE ORDINARY
- *   Thank you for taking the test
+ *   Thank you for being with us on this journey
  *   We're always looking for new ideas and journeys…
  *   YOU'RE THE [TYPE] / [type description]
  *   [Beyond Card PNG]
  *   THIS ONE FEELS LIKE YOU. / [PROJECT NAME] / [email lead] / [what we did]
+ *   bourzma.com · Instagram · LinkedIn
  *
  * Type follows the Beyond Card (Archivo Expanded, stand-in for Sequel 100)
  * where the email app loads web fonts; Arial elsewhere.
@@ -20,7 +21,14 @@ import { getBeyondType, type BeyondTypeId } from "@/lib/beyond/types";
 export const CARD_CONTENT_ID = "beyond-card";
 export const LOGO_CONTENT_ID = "bourzma-logo";
 
-export const THANK_YOU = "Thank you for taking the Beyond the Ordinary test.";
+export const THANK_YOU = "Thank you for being with us on this journey.";
+
+/** Bourzma links, as listed on bourzma.com. */
+export const BOURZMA_LINKS = [
+  { label: "bourzma.com", url: "https://bourzma.com" },
+  { label: "Instagram", url: "https://www.instagram.com/bourzma_/" },
+  { label: "LinkedIn", url: "https://www.linkedin.com/company/bourzma/" },
+] as const;
 export const ALWAYS_LOOKING =
   "At Bourzma we are always looking for new ideas, new people and new journeys to take together. Here is what your answers say about you.";
 
@@ -78,7 +86,10 @@ export function buildBeyondCardEmail(input: {
   <tr><td style="padding:0 0 10px;"><p style="${label}">This one feels like you.</p></td></tr>
   <tr><td style="padding:0 0 12px;"><p style="${headline}">${e(p.name)}</p></td></tr>
   <tr><td style="padding:0 0 16px;"><p style="${lead}">${e(p.emailLead)}</p></td></tr>
-  <tr><td style="padding:0;"><p style="${body}">${e(p.whatWeDid)}</p></td></tr>
+  <tr><td style="padding:0 0 48px;"><p style="${body}">${e(p.whatWeDid)}</p></td></tr>
+  <tr><td style="padding:24px 0 0;border-top:1px solid #ffffff;"><p style="${label}">${BOURZMA_LINKS.map(
+    (l) => `<a href="${e(l.url)}" style="color:#ffffff;text-decoration:underline;">${e(l.label)}</a>`,
+  ).join(" &nbsp;·&nbsp; ")}</p></td></tr>
 </table>
 </td></tr>
 </table>
@@ -104,6 +115,9 @@ export function buildBeyondCardEmail(input: {
     p.emailLead,
     "",
     p.whatWeDid,
+    "",
+    "—",
+    ...BOURZMA_LINKS.map((l) => `${l.label}: ${l.url}`),
   ].join("\n");
 
   return { subject: `Your Beyond Card — ${type.name}`, html, text };

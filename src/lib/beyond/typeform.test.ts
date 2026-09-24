@@ -81,8 +81,27 @@ describe("extractContactDetails", () => {
     });
   });
 
+  it("uses a single Name question for the full name", () => {
+    const text = (ref: string, value: string) => ({ type: "text", text: value, field: { ref } });
+    expect(
+      extractContactDetails({ form_response: { answers: [text("Name", "  Anna Bērziņa ")] } }).fullName,
+    ).toBe("Anna Bērziņa");
+    expect(
+      extractContactDetails({ form_response: { answers: [text("Full_name", "Sam Rivera")] } }).fullName,
+    ).toBe("Sam Rivera");
+  });
+
+  it("joins First_name and Last_name when the form still asks them separately", () => {
+    expect(extractContactDetails(submission).fullName).toBe("Jane Example");
+    const onlyFirst = extractContactDetails({
+      form_response: { answers: [{ type: "text", text: "Jane", field: { ref: "First_name" } }] },
+    });
+    expect(onlyFirst.fullName).toBe("Jane");
+  });
+
   it("returns nulls when contact questions are missing", () => {
     expect(extractContactDetails({})).toEqual({
+      fullName: null,
       firstName: null,
       lastName: null,
       company: null,

@@ -107,6 +107,8 @@ export async function POST(request: Request) {
       JSON.stringify({
         responseToken,
         received: {
+          // "Name" = a full name was found (single question or first + last).
+          [CONTACT_FIELD_REFS.name]: contact.fullName !== null,
           [CONTACT_FIELD_REFS.firstName]: contact.firstName !== null,
           [CONTACT_FIELD_REFS.lastName]: contact.lastName !== null,
           [CONTACT_FIELD_REFS.company]: contact.company !== null,

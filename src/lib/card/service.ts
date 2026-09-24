@@ -32,7 +32,7 @@ export interface CardResult {
  */
 export async function createBeyondCard(input: {
   responseToken: string;
-  contact: Pick<ContactDetails, "firstName" | "lastName" | "company">;
+  contact: Pick<ContactDetails, "fullName" | "company">;
   beyondType: BeyondTypeId;
   primaryProjectId: string;
   secondaryProjectId: string | null;
@@ -53,7 +53,13 @@ export async function createBeyondCard(input: {
     return { beyondId, status: "already-generated", stored: true };
   }
 
-  const card = generateCard(input);
+  // The card shows one name line: the full name (single Name question, or
+  // First_name + Last_name joined), laid out exactly as before.
+  const card = generateCard({
+    responseToken: input.responseToken,
+    beyondType: input.beyondType,
+    contact: { firstName: input.contact.fullName, lastName: null, company: input.contact.company },
+  });
   const size = { width: card.width, height: card.height, bytes: card.png.length };
 
   if (!storage) return { beyondId, status: "generated-not-stored", stored: false, ...size };

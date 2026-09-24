@@ -41,6 +41,22 @@ describe("buildBeyondCardEmail", () => {
     expect(email.text).not.toContain(jersey.shortLine);
   });
 
+  it("thanks people for being on the journey", () => {
+    expect(THANK_YOU).toBe("Thank you for being with us on this journey.");
+  });
+
+  it("ends with links to bourzma.com, Instagram and LinkedIn", () => {
+    for (const url of [
+      "https://bourzma.com",
+      "https://www.instagram.com/bourzma_/",
+      "https://www.linkedin.com/company/bourzma/",
+    ]) {
+      expect(email.html).toContain(`href="${url}"`);
+      expect(email.text).toContain(url);
+    }
+    expect(email.html.indexOf("instagram.com")).toBeGreaterThan(email.html.indexOf(jersey.whatWeDid.slice(0, 20)));
+  });
+
   it("shows the logo and the card inline by content ID", () => {
     expect(email.html).toContain(`src="cid:${LOGO_CONTENT_ID}"`);
     expect(email.html).toContain(`src="cid:${CARD_CONTENT_ID}"`);

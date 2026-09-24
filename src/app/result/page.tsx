@@ -78,6 +78,7 @@ export default async function ResultPage(props: PageProps<"/result">) {
       <footer className={styles.card}>
         <p className={styles.cardLine}>Your Beyond Card is being created.</p>
         <p className={styles.cardCall}>Check your inbox.</p>
+        <p className={styles.cardHint}>Not there in a few minutes? Check your spam folder too.</p>
       </footer>
     </main>
   );
