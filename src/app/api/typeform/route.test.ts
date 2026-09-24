@@ -4,7 +4,7 @@ import submission from "@/lib/beyond/fixtures/typeform-submission.json";
 import { beyondIdFor } from "@/lib/card/beyond-id";
 import { POST } from "./route";
 
-const blob = vi.hoisted(() => ({ head: vi.fn(), put: vi.fn(), get: vi.fn() }));
+const blob = vi.hoisted(() => ({ head: vi.fn(), put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@vercel/blob", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/blob")>()),
   ...blob,
@@ -216,8 +216,12 @@ describe("POST /api/typeform", () => {
   });
 
   describe("automatic Beyond Card email (EMAIL_AUTO_SEND=true)", () => {
-    // In-memory private Blob store, so card, card data and marker round-trip.
+    // In-memory private Blob store, so card, card data, claim and marker
+    // round-trip like the real one (including allowOverwrite: false).
     const files = new Map<string, Buffer>();
+    const uploadedAt = new Map<string, Date>();
+    const CLAIM = `cards/${BEYOND_ID}.email-claim.json`;
+    const MARKER = `cards/${BEYOND_ID}.email-sent.json`;
 
     beforeEach(() => {
       vi.stubEnv("TYPEFORM_WEBHOOK_SECRET", SECRET);
@@ -226,13 +230,23 @@ describe("POST /api/typeform", () => {
       vi.stubEnv("GMAIL_USER", "bourzma.test@gmail.com");
       vi.stubEnv("GMAIL_APP_PASSWORD", "app-password");
       files.clear();
-      blob.put.mockImplementation(async (pathname: string, content: Buffer | string) => {
-        files.set(pathname, Buffer.from(content));
-        return { pathname };
-      });
+      uploadedAt.clear();
+      blob.put.mockImplementation(
+        async (pathname: string, content: Buffer | string, options: { allowOverwrite?: boolean }) => {
+          if (options?.allowOverwrite === false && files.has(pathname)) {
+            throw new Error("This blob already exists");
+          }
+          files.set(pathname, Buffer.from(content));
+          uploadedAt.set(pathname, new Date());
+          return { pathname };
+        },
+      );
       blob.head.mockImplementation(async (pathname: string) => {
         if (!files.has(pathname)) throw new BlobNotFoundError();
-        return { pathname };
+        return { pathname, uploadedAt: uploadedAt.get(pathname) };
+      });
+      blob.del.mockReset().mockImplementation(async (pathname: string) => {
+        files.delete(pathname);
       });
       blob.get.mockImplementation(async (pathname: string) =>
         files.has(pathname)
@@ -258,9 +272,67 @@ describe("POST /api/typeform", () => {
       // The attachment is exactly the PNG that was stored.
       expect(Buffer.compare(message.attachments[0].content, files.get(`cards/${BEYOND_ID}.png`)!)).toBe(0);
 
-      const marker = files.get(`cards/${BEYOND_ID}.email-sent.json`)!.toString();
+      const marker = files.get(MARKER)!.toString();
       expect(JSON.parse(marker)).toMatchObject({ beyondId: BEYOND_ID, messageId: "<msg-1@gmail.com>" });
       expect(marker).not.toContain("jane@example.com");
+      expect(files.has(CLAIM)).toBe(false); // released after sending
+    });
+
+    it("sends only once when two deliveries overlap", async () => {
+      // Hold the first send open until the second delivery has run.
+      let finishFirst!: () => void;
+      smtp.sendMail.mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirst = () => resolve({ messageId: "<msg-1@gmail.com>" }))),
+      );
+      const first = signed();
+      await vi.waitFor(() => expect(smtp.sendMail).toHaveBeenCalledTimes(1));
+      const second = await signed();
+      expect(second.json.email).toEqual({ status: "in-progress" });
+      finishFirst();
+      expect((await first).json.email.status).toBe("sent");
+      expect(smtp.sendMail).toHaveBeenCalledTimes(1);
+      expect((await signed()).json.email).toEqual({ status: "already-sent" });
+    });
+
+    it("takes over a stale claim left by a crashed attempt", async () => {
+      await signed(); // stores card and card data (and sends)
+      files.delete(MARKER);
+      files.set(CLAIM, Buffer.from("{}"));
+      uploadedAt.set(CLAIM, new Date(Date.now() - 11 * 60 * 1000));
+      const { json } = await signed();
+      expect(json.email.status).toBe("sent");
+      expect(smtp.sendMail).toHaveBeenCalledTimes(2);
+    });
+
+    it("sends the card email whatever Marketing_consent says", async () => {
+      const raw = JSON.stringify({
+        ...submission,
+        form_response: {
+          ...submission.form_response,
+          answers: submission.form_response.answers.map((a) =>
+            a.field.ref === "Marketing_consent" ? { ...a, boolean: false } : a,
+          ),
+        },
+      });
+      const { json } = await signed(raw);
+      expect(json.contact.marketingConsent).toBe(false);
+      expect(json.email.status).toBe("sent");
+    });
+
+    it("reports success (no retry) if the email went out but recording it failed", async () => {
+      blob.put.mockImplementation(async (pathname: string, content: Buffer | string, options) => {
+        if (pathname === MARKER) throw new Error("storage hiccup");
+        if (options?.allowOverwrite === false && files.has(pathname)) throw new Error("exists");
+        files.set(pathname, Buffer.from(content));
+        uploadedAt.set(pathname, new Date());
+        return { pathname };
+      });
+      const first = await signed();
+      expect(first.status).toBe(200);
+      expect(first.json.email.status).toBe("sent");
+      // The claim stays and blocks an immediate re-send.
+      expect((await signed()).json.email).toEqual({ status: "in-progress" });
+      expect(smtp.sendMail).toHaveBeenCalledTimes(1);
     });
 
     it("does not email twice when Typeform retries", async () => {
@@ -296,7 +368,8 @@ describe("POST /api/typeform", () => {
       smtp.sendMail.mockRejectedValueOnce(Object.assign(new Error("try later"), { responseCode: 421 }));
       const first = await signed();
       expect(first.status).toBe(500);
-      expect(files.has(`cards/${BEYOND_ID}.email-sent.json`)).toBe(false);
+      expect(files.has(MARKER)).toBe(false);
+      expect(files.has(CLAIM)).toBe(false); // released so the retry can send
 
       const retry = await signed();
       expect(retry.status).toBe(200);

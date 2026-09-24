@@ -1,19 +1,27 @@
-import { emailAlreadySent, markEmailSent } from "@/lib/card/store";
+import { claimEmailSend, emailAlreadySent, markEmailSent, releaseEmailClaim } from "@/lib/card/store";
 import { sendBeyondCardEmail } from "./send-card-email";
 
 /*
- * Automatic Beyond Card email for a Typeform submission.
+ * Automatic Beyond Card email for a Typeform submission (transactional: the
+ * respondent asked for their card, so Marketing_consent does not apply).
  *
- * OFF unless EMAIL_AUTO_SEND is exactly "true" in the environment, so it can
- * be switched on and off in Vercel without code changes (redeploy to apply).
- * Sends at most once per Beyond ID: a marker file is written after sending,
- * and a Typeform retry that finds it does not send again.
+ * ON only when EMAIL_AUTO_SEND is exactly "true" (set in Vercel, redeploy to
+ * apply; anything else switches it off).
+ *
+ * At most one email per Beyond ID:
+ *   1. cards/<id>.email-sent.json exists      → "already-sent", nothing sent
+ *   2. claim cards/<id>.email-claim.json      → only one delivery can create it;
+ *      another delivery holding it           → "in-progress", nothing sent
+ *   3. send, write email-sent.json, release the claim
+ *   If sending fails the claim is released and nothing is marked, so the
+ *   Typeform retry sends it.
  */
 
 export type AutoEmailStatus =
   | "disabled"
   | "sent"
   | "already-sent"
+  | "in-progress"
   | "skipped-no-email"
   | "skipped-card-not-stored";
 
@@ -29,13 +37,28 @@ export async function autoSendCardEmail(input: {
   cardStored: boolean;
 }): Promise<{ status: AutoEmailStatus; messageId?: string }> {
   if (!isAutoEmailEnabled()) return { status: "disabled" };
+  // Only a successfully stored card is ever emailed (the email uses that exact PNG).
   if (!input.cardStored) return { status: "skipped-card-not-stored" };
   const to = input.to?.trim() ?? "";
   if (!EMAIL_PATTERN.test(to) || to.length > 254) return { status: "skipped-no-email" };
 
   if (await emailAlreadySent(input.beyondId)) return { status: "already-sent" };
+  if ((await claimEmailSend(input.beyondId)) === "busy") return { status: "in-progress" };
 
-  const { messageId } = await sendBeyondCardEmail({ beyondId: input.beyondId, to });
-  await markEmailSent(input.beyondId, messageId);
+  let messageId: string;
+  try {
+    ({ messageId } = await sendBeyondCardEmail({ beyondId: input.beyondId, to }));
+  } catch (error) {
+    await releaseEmailClaim(input.beyondId);
+    throw error;
+  }
+  try {
+    await markEmailSent(input.beyondId, messageId);
+  } catch {
+    // The email WAS sent. Report success (a 500 would make Typeform retry and
+    // send again) and keep the claim, which blocks re-sending. Already logged.
+    return { status: "sent", messageId };
+  }
+  await releaseEmailClaim(input.beyondId);
   return { status: "sent", messageId };
 }

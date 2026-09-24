@@ -213,11 +213,18 @@ no domain; Gmail allows ~500 recipients a day). Each email:
 
 **Automatic** (`src/lib/email/auto-send.ts`): ON only when
 `EMAIL_AUTO_SEND=true`. After the card is stored, the webhook emails it to the
-Typeform `Email` answer, then writes `cards/<Beyond ID>.email-sent.json`; a
-Typeform retry that finds it does not send again. No email address → skipped.
-If sending fails the webhook returns 500 and Typeform retries. The webhook
-response and logs include `email.status`: `disabled`, `sent`, `already-sent`,
-`skipped-no-email` or `skipped-card-not-stored`.
+Typeform `Email` answer. It is transactional, so `Marketing_consent` does not
+affect it (consent is only for future marketing).
+
+One email per Beyond ID: `cards/<id>.email-sent.json` present → no send.
+Otherwise the delivery must first create `cards/<id>.email-claim.json`
+(create-only, so an overlapping retry gets "in-progress"); it sends, writes
+the sent record and releases the claim. If sending fails the claim is released
+and the webhook returns 500, so Typeform's retry sends it. Claims older than
+10 minutes (crashed attempt) are taken over. No email address → skipped.
+
+The webhook response and logs include `email.status`: `disabled`, `sent`,
+`already-sent`, `in-progress`, `skipped-no-email` or `skipped-card-not-stored`.
 
 **Test** (`/email-test`, or `POST /api/email/test` with header
 `x-email-test-key: <EMAIL_TEST_KEY>` and body `{ "beyondId", "to" }`): sends
