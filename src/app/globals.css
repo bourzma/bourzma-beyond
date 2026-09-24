@@ -15,7 +15,6 @@
   --color-background: var(--paper);
   --color-foreground: var(--ink);
   --font-sans: var(--font-archivo);
-  --font-serif: var(--font-bodoni);
 }
 
 body {

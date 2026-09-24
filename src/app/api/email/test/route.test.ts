@@ -94,9 +94,11 @@ describe("POST /api/email/test", () => {
       subject: "Your Beyond Card — THE VISIONARY",
     });
     expect(message.text).toContain("DELIVERY VAN REDESIGN");
-    expect(message.attachments).toHaveLength(1);
+    expect(message.attachments).toHaveLength(2);
     expect(Buffer.compare(message.attachments[0].content, PNG)).toBe(0);
     expect(message.attachments[0]).toMatchObject({ contentType: "image/png", cid: "beyond-card" });
+    expect(message.attachments[1]).toMatchObject({ contentType: "image/png", cid: "bourzma-logo" });
+    expect(message.attachments[1].content.subarray(1, 4).toString()).toBe("PNG");
   });
 
   it("does not mark the card as emailed", async () => {

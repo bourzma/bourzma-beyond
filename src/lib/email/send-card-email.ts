@@ -1,7 +1,16 @@
+import fs from "node:fs";
+import path from "node:path";
 import { PROJECTS } from "@/lib/beyond/projects";
 import { readCardMeta, readCardPng } from "@/lib/card/store";
-import { CARD_CONTENT_ID, buildBeyondCardEmail } from "./beyond-card-email";
+import { CARD_CONTENT_ID, LOGO_CONTENT_ID, buildBeyondCardEmail } from "./beyond-card-email";
 import { MailerConfigError, sendMail } from "./mailer";
+
+let logo: Buffer | undefined;
+/** The official Bourzma logo (green on transparent), shown at the top of the email. */
+function logoPng(): Buffer {
+  logo ??= fs.readFileSync(path.join(process.cwd(), "public", "brand", "bourzma-logo.png"));
+  return logo;
+}
 
 /*
  * Sends the Beyond Card email for a card that is already stored, using the
@@ -51,6 +60,12 @@ export async function sendBeyondCardEmail(input: { beyondId: string; to: string 
           content: png,
           contentType: "image/png",
           cid: CARD_CONTENT_ID,
+        },
+        {
+          filename: "bourzma.png",
+          content: logoPng(),
+          contentType: "image/png",
+          cid: LOGO_CONTENT_ID,
         },
       ],
     });

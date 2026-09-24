@@ -7,6 +7,8 @@ export interface BeyondProject {
   /** Types this project suits, most aligned first. Main matching signal. */
   bestAlignedWith: BeyondTypeId[];
   shortLine: string;
+  /** Opening line of this project in the Beyond Card email; unique per project. */
+  emailLead: string;
   /** Plain text, usable in both the result page and the email template. */
   whatWeDid: string;
   /** Placeholders until filled: null means "not set yet". */
@@ -31,6 +33,7 @@ export const PROJECTS: BeyondProject[] = [
     category: ["Fashion", "Sustainability", "Creative Collaboration"],
     bestAlignedWith: ["visionary", "connector", "rulebreaker"],
     shortLine: "Rethinking how fashion is created, presented and experienced.",
+    emailLead: "We turned sustainable fashion into a stage where designers, artists and their communities take the spotlight together.",
     whatWeDid:
       "Bourzma Boutique is our flagship sustainable fashion experience bringing together emerging designers, artists and creative communities through runway shows, upcycling workshops, performances, markets and unexpected cultural experiences.",
     symbol: null,
@@ -57,6 +60,7 @@ export const PROJECTS: BeyondProject[] = [
     category: ["Large-scale Activation", "Production", "Events"],
     bestAlignedWith: ["maker", "catalyst"],
     shortLine: "When a big idea becomes impossible to ignore.",
+    emailLead: "We took a basketball jersey and kept scaling it up until no other jersey on record came close.",
     whatWeDid:
       "We turned an oversized idea into a real large-scale physical installation, creating a giant basketball jersey designed to generate attention, interaction and a memorable brand moment.",
     symbol: null,
@@ -84,6 +88,7 @@ export const PROJECTS: BeyondProject[] = [
     // Maker: a designed concept turned into a real physical brand activation.
     bestAlignedWith: ["catalyst", "visionary", "rulebreaker", "maker"],
     shortLine: "Turning an everyday delivery van into a moving brand experience.",
+    emailLead: "We gave a delivery van a new identity, so every route through the city became a moving campaign.",
     whatWeDid:
       "We created a custom visual concept for a brand and transformed one of their delivery vans into a moving piece of brand communication, taking the design out of traditional media and onto the streets.",
     symbol: null,
@@ -111,6 +116,7 @@ export const PROJECTS: BeyondProject[] = [
     category: ["Events", "Culture", "Experiences"],
     bestAlignedWith: ["rulebreaker", "catalyst", "visionary"],
     shortLine: "A tunnel wasn't supposed to be a rave.",
+    emailLead: "We went underground in the centre of Riga and found the light at the end of a pedestrian tunnel, with a dance floor under it.",
     whatWeDid:
       "We transformed an underground pedestrian tunnel in central Riga into a one-night cultural experience combining electronic music, street culture and sustainable fashion, turning an overlooked city space into part of Riga's birthday celebration.",
     symbol: null,
@@ -136,6 +142,7 @@ export const PROJECTS: BeyondProject[] = [
     category: ["Retail", "Experiential", "Content"],
     bestAlignedWith: ["connector", "catalyst", "visionary"],
     shortLine: "Turning a shopping mall into a stage for fashion and creativity.",
+    emailLead: "We swapped the shop windows for a runway and gave a shopping mall's visitors something to stop for.",
     whatWeDid:
       "We brought Bourzma into the shopping mall environment through a fashion show, creative workshops and content-driven activations, creating experiences that gave visitors a reason to stop, participate and engage with the space differently.",
     symbol: null,

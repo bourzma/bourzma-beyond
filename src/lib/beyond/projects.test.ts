@@ -33,6 +33,13 @@ describe("PROJECTS", () => {
     expect([...WORKPLACE_TYPE_OPTIONS].filter((o) => !workplace.has(o))).toEqual(["Other"]);
   });
 
+  it("gives every project its own email lead", () => {
+    const leads = PROJECTS.map((p) => p.emailLead);
+    expect(leads.every((l) => l.trim().length > 20)).toBe(true);
+    expect(new Set(leads).size).toBe(PROJECTS.length);
+    for (const p of PROJECTS) expect(p.emailLead).not.toBe(p.shortLine);
+  });
+
   it("lists Delivery Van Redesign as a Maker project", () => {
     const van = PROJECTS.find((p) => p.id === "delivery-van-redesign");
     expect(van?.bestAlignedWith).toContain("maker");
