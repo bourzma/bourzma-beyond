@@ -50,8 +50,9 @@ function ProjectSymbol({ project }: { project: BeyondProject }) {
 function Masthead() {
   return (
     <header className={styles.masthead}>
-      <span className={styles.wordmark}>BOURZMA</span>
-      <span className={styles.edition}>Beyond the Ordinary</span>
+      {/* Text stand-in for the Bourzma wordmark; swap for the logo file when available. */}
+      <p className={styles.wordmark}>&ldquo;BOURZMA&rdquo;</p>
+      <p className={styles.edition}>Beyond the Ordinary</p>
     </header>
   );
 }

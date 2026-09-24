@@ -1,10 +1,12 @@
 /*
- * /result — black and white, editorial, mobile-first.
- * The two dominant elements are the type name and the project symbol.
+ * /result: continues the Typeform's ending screen. White on black,
+ * centred, the green wordmark on top. The two dominant elements are the
+ * type name and the project symbol.
  */
 
 .page {
   --gutter: 1.25rem;
+  text-wrap: balance;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -12,39 +14,38 @@
   margin: 0 auto;
   background: var(--paper);
   color: var(--ink);
+  text-align: center;
 }
 
-/* Masthead ------------------------------------------------------------ */
+/* Masthead: “BOURZMA” wordmark, as on the Typeform ------------------- */
 
 .masthead {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 1.25rem var(--gutter) 0;
-  font-size: 0.6875rem;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  padding: clamp(2.5rem, 8vh, 4rem) var(--gutter) 0;
 }
 
 .wordmark {
+  margin: 0;
+  color: var(--signal);
   font-weight: 900;
-  font-stretch: 62%;
-  font-size: 1.125rem;
-  letter-spacing: 0.06em;
+  font-stretch: 125%;
+  font-size: clamp(1.75rem, 9vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
 }
 
 .edition {
+  margin: 0.875rem 0 0;
+  font-size: 0.6875rem;
   font-weight: 500;
-  text-align: right;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
 }
 
 /* Type reveal --------------------------------------------------------- */
 
 .reveal {
   container-type: inline-size;
-  padding: clamp(3.5rem, 14vh, 7rem) var(--gutter) 0;
+  padding: clamp(3.5rem, 12vh, 6rem) var(--gutter) 0;
 }
 
 .kicker,
@@ -52,26 +53,26 @@
   margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
 /* Sized from the word's measured width (--word-em) so it spans the column. */
 .type {
   --word-em: 5.3;
-  margin: 0.5rem 0 0 -0.04em;
+  margin: 0.625rem 0 0;
   font-weight: 900;
   font-stretch: 62%;
   font-size: min(calc(100cqi / (var(--word-em) * 1.02)), 12rem);
-  white-space: nowrap;
   line-height: 0.82;
   letter-spacing: -0.01em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .tagline {
   max-width: 22ch;
-  margin: 1.75rem 0 0;
+  margin: 1.75rem auto 0;
   font-family: var(--font-bodoni), Georgia, serif;
   font-style: italic;
   font-size: clamp(1.5rem, 7vw, 2.5rem);
@@ -83,13 +84,14 @@
 /* Next place ---------------------------------------------------------- */
 
 .rule {
-  margin: clamp(2.5rem, 9vh, 5rem) var(--gutter) 0;
+  width: 2.5rem;
+  margin: clamp(3rem, 10vh, 5rem) auto 0;
   border: 0;
   border-top: 1px solid var(--ink);
 }
 
 .next {
-  padding: 1.25rem var(--gutter) clamp(3.5rem, 12vh, 6rem);
+  padding: 2rem var(--gutter) clamp(3.5rem, 12vh, 6rem);
 }
 
 .symbolFrame {
@@ -126,6 +128,7 @@
 
 .placeholderNote {
   padding-bottom: 0.875rem;
+  color: var(--muted);
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -135,7 +138,6 @@
 .instruction {
   margin: 2rem auto 0;
   max-width: 18ch;
-  text-align: center;
   font-family: var(--font-bodoni), Georgia, serif;
   font-style: italic;
   font-size: clamp(1.25rem, 5.5vw, 1.75rem);
@@ -146,16 +148,15 @@
 
 .card {
   margin-top: auto;
-  padding: 2.5rem var(--gutter) calc(2.5rem + env(safe-area-inset-bottom));
-  background: var(--ink);
-  color: var(--paper);
+  padding: 2.5rem var(--gutter) calc(3rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ink);
 }
 
 .cardLine {
   margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
@@ -175,7 +176,7 @@
 }
 
 .problemTitle {
-  margin: 0.5rem 0 0;
+  margin: 0.625rem 0 0;
   font-weight: 900;
   font-stretch: 62%;
   font-size: clamp(3rem, 16vw, 6rem);
