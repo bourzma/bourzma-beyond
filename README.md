@@ -146,11 +146,21 @@ and ignore extra spaces; multi-select answers match if any selection matches.
 
 ## Webhook
 
-Point a Typeform webhook at `POST /api/typeform`. If
-`TYPEFORM_WEBHOOK_SECRET` is set, the `Typeform-Signature` header is checked.
-See `.env.example`. The response includes `primaryProject` and
-`secondaryProject` in full (including `whatWeDid`), ready for an email
-template, plus the `professionalContext` that was read.
+Production URL: `https://bourzma-beyond.vercel.app/api/typeform`
+(or the same path on a custom domain).
+
+- **Signature:** every request must carry a valid `Typeform-Signature`
+  (HMAC-SHA256 of the raw body with `TYPEFORM_WEBHOOK_SECRET`). In production
+  the webhook refuses all requests (503) until that variable is set.
+- **Parsed:** contact details (`First_name`, `Last_name`, `Company`, `Role`,
+  `Email`, `Linkedin`, `Marketing_consent`), the five personality answers,
+  `Looking_for`, `Workplace_type`, scores, Beyond Type, and the primary and
+  secondary projects in full (including `whatWeDid`).
+- **Response:** everything parsed, as JSON, visible in Typeform's webhook
+  delivery log. **Logs** show only which fields arrived, never their values.
+- `Role` and contact fields are never used for matching.
+- Sample payload for tests: `src/lib/beyond/fixtures/typeform-submission.json`.
+- No email is sent yet.
 
 ## Development
 

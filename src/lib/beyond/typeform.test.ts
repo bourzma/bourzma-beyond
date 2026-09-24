@@ -1,7 +1,9 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import submission from "./fixtures/typeform-submission.json";
 import {
   extractAnswers,
+  extractContactDetails,
   extractProfessionalContext,
   verifyTypeformSignature,
 } from "./typeform";
@@ -66,6 +68,39 @@ describe("extractProfessionalContext", () => {
 
   it("returns empty lists when the questions are missing", () => {
     expect(extractProfessionalContext({})).toEqual({ lookingFor: [], workplaceType: [] });
+  });
+});
+
+describe("extractContactDetails", () => {
+  it("reads text, email, website and consent answers", () => {
+    expect(extractContactDetails(submission)).toMatchObject({
+      firstName: "Jane",
+      email: "jane@example.com",
+      linkedin: "https://www.linkedin.com/in/jane-example",
+      marketingConsent: true,
+    });
+  });
+
+  it("returns nulls when contact questions are missing", () => {
+    expect(extractContactDetails({})).toEqual({
+      firstName: null,
+      lastName: null,
+      company: null,
+      role: null,
+      email: null,
+      linkedin: null,
+      marketingConsent: null,
+      marketingConsentRaw: null,
+    });
+  });
+
+  it("keeps a non-boolean consent answer as raw text", () => {
+    const consent = extractContactDetails({
+      form_response: {
+        answers: [{ type: "choice", choice: { label: "TEST_YES" }, field: { ref: "Marketing_consent" } }],
+      },
+    });
+    expect(consent).toMatchObject({ marketingConsent: null, marketingConsentRaw: "TEST_YES" });
   });
 });
 

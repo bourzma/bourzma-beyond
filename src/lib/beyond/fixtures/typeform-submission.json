@@ -1,0 +1,25 @@
+{
+  "event_id": "01TESTEVENT000000000000000",
+  "event_type": "form_response",
+  "form_response": {
+    "form_id": "TESTFORM",
+    "token": "test-response-token",
+    "submitted_at": "2026-09-24T12:00:00Z",
+    "answers": [
+      { "type": "text", "text": "Jane", "field": { "id": "f1", "type": "short_text", "ref": "First_name" } },
+      { "type": "text", "text": "Example", "field": { "id": "f2", "type": "short_text", "ref": "Last_name" } },
+      { "type": "text", "text": "Example Studio", "field": { "id": "f3", "type": "short_text", "ref": "Company" } },
+      { "type": "text", "text": "Creative Director", "field": { "id": "f4", "type": "short_text", "ref": "Role" } },
+      { "type": "email", "email": "jane@example.com", "field": { "id": "f5", "type": "email", "ref": "Email" } },
+      { "type": "url", "url": "https://www.linkedin.com/in/jane-example", "field": { "id": "f6", "type": "website", "ref": "Linkedin" } },
+      { "type": "number", "number": 3, "field": { "id": "f7", "type": "opinion_scale", "ref": "Social" } },
+      { "type": "number", "number": 5, "field": { "id": "f8", "type": "opinion_scale", "ref": "Curiosity" } },
+      { "type": "number", "number": 3, "field": { "id": "f9", "type": "opinion_scale", "ref": "Execution" } },
+      { "type": "number", "number": 3, "field": { "id": "f10", "type": "opinion_scale", "ref": "Connection" } },
+      { "type": "number", "number": 4, "field": { "id": "f11", "type": "opinion_scale", "ref": "Beyond_default" } },
+      { "type": "choice", "choice": { "label": "Brands" }, "field": { "id": "f12", "type": "multiple_choice", "ref": "Looking_for" } },
+      { "type": "choice", "choice": { "label": "Brand / Company" }, "field": { "id": "f13", "type": "multiple_choice", "ref": "Workplace_type" } },
+      { "type": "boolean", "boolean": true, "field": { "id": "f14", "type": "legal", "ref": "Marketing_consent" } }
+    ]
+  }
+}
