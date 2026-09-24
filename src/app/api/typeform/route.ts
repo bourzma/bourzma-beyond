@@ -56,7 +56,13 @@ export async function POST(request: Request) {
     // Idempotent: a Typeform retry reuses the card already stored for this token.
     let card: CardResult;
     try {
-      card = await createBeyondCard({ responseToken, contact, beyondType: result.beyondType });
+      card = await createBeyondCard({
+        responseToken,
+        contact,
+        beyondType: result.beyondType,
+        primaryProjectId: match.primary.id,
+        secondaryProjectId: match.secondary?.id ?? null,
+      });
     } catch (error) {
       console.error(
         "[typeform] card generation failed",

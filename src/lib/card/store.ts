@@ -1,4 +1,5 @@
 import { BlobNotFoundError, del, get, head, put } from "@vercel/blob";
+import { isBeyondTypeId, type BeyondTypeId } from "@/lib/beyond/types";
 
 /*
  * Cards contain names and company names, so they are stored as PRIVATE
@@ -12,6 +13,20 @@ import { BlobNotFoundError, del, get, head, put } from "@vercel/blob";
  */
 
 export const cardPathname = (beyondId: string) => `cards/${beyondId}.png`;
+export const cardMetaPathname = (beyondId: string) => `cards/${beyondId}.json`;
+
+/**
+ * What the stored card was made from, for the email step. Deliberately no
+ * personal data: names and company are only on the PNG itself.
+ */
+export interface CardMeta {
+  version: 1;
+  beyondId: string;
+  beyondType: BeyondTypeId;
+  primaryProjectId: string;
+  secondaryProjectId: string | null;
+  createdAt: string;
+}
 
 export type BlobAuthMode = "oidc" | "read-write-token" | "none";
 
@@ -36,7 +51,7 @@ export function redact(message: string): string {
 
 export class CardStorageError extends Error {
   constructor(
-    public readonly stage: "exists" | "save" | "read",
+    public readonly stage: "exists" | "save" | "read" | "meta-exists" | "meta-save" | "meta-read",
     public readonly beyondId: string,
     cause: unknown,
   ) {
@@ -97,6 +112,54 @@ export async function readCard(beyondId: string): Promise<ReadableStream<Uint8Ar
   } catch (error) {
     if (error instanceof BlobNotFoundError) return null;
     fail("read", beyondId, error);
+  }
+}
+
+/** The stored PNG as bytes (for email attachments), or null if missing. */
+export async function readCardPng(beyondId: string): Promise<Buffer | null> {
+  const stream = await readCard(beyondId);
+  return stream ? Buffer.from(await new Response(stream).arrayBuffer()) : null;
+}
+
+export async function cardMetaExists(beyondId: string): Promise<boolean> {
+  try {
+    await head(cardMetaPathname(beyondId));
+    return true;
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return false;
+    fail("meta-exists", beyondId, error);
+  }
+}
+
+export async function saveCardMeta(meta: CardMeta): Promise<void> {
+  try {
+    await put(cardMetaPathname(meta.beyondId), JSON.stringify(meta), {
+      access: "private",
+      contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+  } catch (error) {
+    fail("meta-save", meta.beyondId, error);
+  }
+}
+
+/** The stored card metadata, or null if missing or unreadable. */
+export async function readCardMeta(beyondId: string): Promise<CardMeta | null> {
+  let text: string;
+  try {
+    const result = await get(cardMetaPathname(beyondId), { access: "private" });
+    if (!result || result.statusCode !== 200) return null;
+    text = await new Response(result.stream).text();
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return null;
+    fail("meta-read", beyondId, error);
+  }
+  try {
+    const meta = JSON.parse(text) as CardMeta;
+    return meta.beyondId === beyondId && isBeyondTypeId(meta.beyondType) ? meta : null;
+  } catch {
+    return null;
   }
 }
 

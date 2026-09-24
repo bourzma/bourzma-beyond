@@ -199,6 +199,26 @@ shows the stored PNG; add `&download=1` to download it.
 put/head/get/delete round trip against the real store. Both are disabled
 unless `CARD_PREVIEW_KEY` is set; never cached or indexed.
 
+## Beyond Card email (test only)
+
+Automatic emails are **off**: the webhook never sends email.
+
+For testing, `/email-test` (or `POST /api/email/test` with header
+`x-email-test-key: <EMAIL_TEST_KEY>` and body `{ "beyondId", "to" }`) sends one
+email for an already stored card:
+
+- loads the exact stored PNG (`cards/<Beyond ID>.png`, never regenerated)
+  and its card data (`cards/<Beyond ID>.json`: Beyond Type and project IDs,
+  written by the webhook; no personal data)
+- builds the email in `src/lib/email/beyond-card-email.ts` (fixed text from
+  the type and project data) and sends it through Resend with the card shown
+  inline and attached
+- logs the Beyond ID and Resend email ID, never the recipient
+
+Cards stored before the card-data file existed get it on the next Typeform
+retry of that submission. `npx tsx scripts/render-sample-email.ts` writes an
+offline preview to `card-samples/email.html`.
+
 ## Development
 
 ```bash

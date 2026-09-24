@@ -10,6 +10,12 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
   ...blob,
 }));
 const { BlobNotFoundError } = await vi.importActual<typeof import("@vercel/blob")>("@vercel/blob");
+const resend = vi.hoisted(() => ({ send: vi.fn() }));
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: resend.send };
+  },
+}));
 
 const BEYOND_ID = beyondIdFor("test-response-token");
 
@@ -124,19 +130,47 @@ describe("POST /api/typeform", () => {
         width: 2160,
         height: 1400,
       });
-      expect(blob.put).toHaveBeenCalledTimes(1);
+      expect(blob.put).toHaveBeenCalledTimes(2);
       const [pathname, png, options] = blob.put.mock.calls[0];
       expect(pathname).toBe(`cards/${BEYOND_ID}.png`);
       expect(Buffer.from(png).subarray(1, 4).toString()).toBe("PNG");
       expect(options).toMatchObject({ access: "private", contentType: "image/png", addRandomSuffix: false });
+
+      // Card data for the email step: type and projects, no personal data.
+      const [metaPath, metaBody, metaOptions] = blob.put.mock.calls[1];
+      expect(metaPath).toBe(`cards/${BEYOND_ID}.json`);
+      expect(metaOptions).toMatchObject({ access: "private" });
+      expect(JSON.parse(metaBody)).toMatchObject({
+        beyondId: BEYOND_ID,
+        beyondType: "visionary",
+        primaryProjectId: "delivery-van-redesign",
+        secondaryProjectId: "bourzma-boutique",
+      });
+      for (const personal of ["Jane", "Example", "jane@example.com"]) expect(metaBody).not.toContain(personal);
     });
 
     it("does not generate a second card when Typeform retries", async () => {
-      blob.head.mockResolvedValue({ pathname: `cards/${BEYOND_ID}.png` });
+      blob.head.mockResolvedValue({ pathname: "exists" });
       const { status, json } = await signed();
       expect(status).toBe(200);
       expect(json.card).toEqual({ beyondId: BEYOND_ID, status: "already-generated", stored: true });
       expect(blob.put).not.toHaveBeenCalled();
+    });
+
+    it("adds the card data to a card stored before it existed, on retry", async () => {
+      blob.head.mockImplementation(async (pathname: string) => {
+        if (pathname.endsWith(".png")) return { pathname };
+        throw new BlobNotFoundError();
+      });
+      const { json } = await signed();
+      expect(json.card.status).toBe("already-generated");
+      expect(blob.put).toHaveBeenCalledTimes(1);
+      expect(blob.put.mock.calls[0][0]).toBe(`cards/${BEYOND_ID}.json`);
+    });
+
+    it("never sends email (automatic emails are off)", async () => {
+      await signed();
+      expect(resend.send).not.toHaveBeenCalled();
     });
 
     it("gives the same Beyond ID for the same response token", async () => {
