@@ -23,10 +23,8 @@ export interface TypeformWebhookPayload {
 
 /** Typeform field refs of the professional questions used for matching. */
 export const PROFESSIONAL_FIELD_REFS = {
-  workplaceType: "Workplace_type",
-  workArea: "Work_area",
-  industry: "Industry",
   lookingFor: "Looking_for",
+  workplaceType: "Workplace_type",
 } as const satisfies Record<keyof ProfessionalContext, string>;
 
 /** Every selected label (plus any "Other" text) of one answer. */
@@ -49,10 +47,8 @@ export function extractProfessionalContext(
   const valuesFor = (ref: string) =>
     answers.filter((a) => a.field?.ref === ref).flatMap(answerValues);
   return {
-    workplaceType: valuesFor(PROFESSIONAL_FIELD_REFS.workplaceType),
-    workArea: valuesFor(PROFESSIONAL_FIELD_REFS.workArea),
-    industry: valuesFor(PROFESSIONAL_FIELD_REFS.industry),
     lookingFor: valuesFor(PROFESSIONAL_FIELD_REFS.lookingFor),
+    workplaceType: valuesFor(PROFESSIONAL_FIELD_REFS.workplaceType),
   };
 }
 

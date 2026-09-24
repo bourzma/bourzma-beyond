@@ -72,23 +72,22 @@ these numbers so the order cannot change by accident.
 - `/result?Social=4&Curiosity=5&Execution=2&Connection=3&Beyond_default=5`
   scores the answers first. Use this form as Typeform's
   "redirect on completion" URL, recalling each answer into its parameter.
-- Add `&Workplace_type=…&Work_area=…&Industry=…&Looking_for=…` to either form
-  to use professional context in project matching. Contact details (name,
-  email, LinkedIn) are never needed in the URL.
+- Optionally add `&Looking_for=…&Workplace_type=…` to either form to use
+  professional context in project matching. Contact details (name, email,
+  LinkedIn) are never needed in the URL.
 
 ## Projects
 
 All project content lives in `src/lib/beyond/projects.ts`, one object per
 project: `name`, `category`, `bestAlignedWith`, `shortLine`, `whatWeDid`,
-`symbol`, `image`, `videoUrl`, `ctaUrl`, `relevantWorkAreas`,
-`relevantIndustries`, `relevantLookingFor`.
+`symbol`, `image`, `videoUrl`, `ctaUrl`, `relevantWorkplaceTypes`,
+`relevantLookingFor`.
 
 - `symbol`, `image`, `videoUrl` and `ctaUrl` are `null` until filled in.
   Images can be full URLs or files placed in `public/projects/` and written as
   `/projects/<file>.jpg`.
-- `relevantWorkplaceTypes`, `relevantWorkAreas`, `relevantIndustries` and
-  `relevantLookingFor` hold **exact Typeform option labels**. An empty list
-  means that field never adds points.
+- `relevantLookingFor` and `relevantWorkplaceTypes` hold **exact Typeform
+  option labels**. An empty list means that field never adds points.
 
 ### Matching (`src/lib/beyond/matching.ts`)
 
@@ -97,19 +96,20 @@ another exists, a different **"Also for you"** project.
 
 Each project gets points:
 
-| Signal                                    | Points                    |
-| ----------------------------------------- | ------------------------- |
-| Beyond Type in `bestAlignedWith`          | 1st 30 · 2nd 20 · 3rd+ 10 |
-| `Looking_for` matches `relevantLookingFor` | +6                       |
-| `Industry` matches `relevantIndustries`    | +4                       |
-| `Work_area` matches `relevantWorkAreas`    | +3                       |
-| `Workplace_type` matches `relevantWorkplaceTypes` | +2                |
+| Signal                                            | Points                    |
+| ------------------------------------------------- | ------------------------- |
+| Beyond Type in `bestAlignedWith`                  | 1st 30 · 2nd 20 · 3rd+ 10 |
+| `Looking_for` matches `relevantLookingFor`         | +12                       |
+| `Workplace_type` matches `relevantWorkplaceTypes`  | +4                        |
 
-Professional points add up to 15 at most, so a strong professional fit can
-lift a project **one** place in the type order, never two. Projects not
+Type places are 10 points apart. A `Looking_for` match (12) can lift a project
+one place; a `Workplace_type` match (4) only decides between equally placed
+projects; both together (16) never lift a project two places. Projects not
 aligned with the Beyond Type always rank below aligned ones. Ties go to the
 better type position, then catalogue order. Labels match case-insensitively
 and ignore extra spaces; multi-select answers match if any selection matches.
+
+`Role` is free text and is never used for matching.
 
 ## Webhook
 

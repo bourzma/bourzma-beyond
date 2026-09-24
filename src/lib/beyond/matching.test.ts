@@ -7,18 +7,13 @@ import { BEYOND_TYPE_IDS, type BeyondTypeId } from "./types";
 const withRelevance = (overrides: Record<string, Partial<BeyondProject>>): BeyondProject[] =>
   PROJECTS.map((p) => ({ ...p, ...overrides[p.id] }));
 
-const fullFit: Partial<BeyondProject> = {
-  relevantWorkplaceTypes: ["TEST_WORKPLACE"],
-  relevantWorkAreas: ["TEST_AREA"],
-  relevantIndustries: ["TEST_INDUSTRY"],
-  relevantLookingFor: ["TEST_GOAL"],
-};
+const lookingForFit: Partial<BeyondProject> = { relevantLookingFor: ["TEST_GOAL"] };
+const workplaceFit: Partial<BeyondProject> = { relevantWorkplaceTypes: ["TEST_WORKPLACE"] };
+const fullFit: Partial<BeyondProject> = { ...lookingForFit, ...workplaceFit };
 
 const fullContext: ProfessionalContext = {
-  workplaceType: ["TEST_WORKPLACE"],
-  workArea: ["TEST_AREA"],
-  industry: ["TEST_INDUSTRY"],
   lookingFor: ["TEST_GOAL"],
+  workplaceType: ["TEST_WORKPLACE"],
 };
 
 const pick = (type: BeyondTypeId, context = EMPTY_CONTEXT, projects = PROJECTS) => {
@@ -39,17 +34,26 @@ describe("matchProjects with the Beyond Type only", () => {
 });
 
 describe("matchProjects with professional context", () => {
-  it("lets a strong fit lift a project one place", () => {
-    // Visionary: Van is 2nd-aligned (20 + 15) and overtakes Boutique (30).
-    const projects = withRelevance({ "delivery-van-redesign": fullFit });
+  it("lets a Looking_for match lift a project one place", () => {
+    // Visionary: Van is 2nd-aligned (20 + 12 = 32) and overtakes Boutique (30).
+    const projects = withRelevance({ "delivery-van-redesign": lookingForFit });
     expect(pick("visionary", fullContext, projects)).toEqual([
       "delivery-van-redesign",
       "bourzma-boutique",
     ]);
   });
 
+  it("does not let a Workplace_type match alone lift a project", () => {
+    // Visionary: Van (20 + 4 = 24) stays below Boutique (30).
+    const projects = withRelevance({ "delivery-van-redesign": workplaceFit });
+    expect(pick("visionary", fullContext, projects)).toEqual([
+      "bourzma-boutique",
+      "delivery-van-redesign",
+    ]);
+  });
+
   it("never lifts a project two places", () => {
-    // Visionary: Gaisma is 3rd-aligned (10 + 15 = 25) and stays below Boutique (30).
+    // Visionary: Gaisma is 3rd-aligned (10 + 16 = 26) and stays below Boutique (30).
     const projects = withRelevance({ "gaisma-tunela-gala": fullFit });
     expect(pick("visionary", fullContext, projects)).toEqual([
       "bourzma-boutique",
@@ -57,26 +61,38 @@ describe("matchProjects with professional context", () => {
     ]);
   });
 
-  it("uses context to choose between equally aligned projects", () => {
-    // Catalyst: Jersey, Gaisma and Mall are all 2nd-aligned.
-    const projects = withRelevance({
-      "bourzma-x-shopping-mall": { relevantLookingFor: ["TEST_GOAL"] },
-    });
-    const context = { ...EMPTY_CONTEXT, lookingFor: ["TEST_GOAL"] };
-    expect(pick("catalyst", context, projects)).toEqual([
+  it("uses Workplace_type to choose between equally placed projects", () => {
+    // Catalyst: Jersey, Gaisma and Mall are all 2nd-aligned (20 each).
+    const projects = withRelevance({ "bourzma-x-shopping-mall": workplaceFit });
+    expect(pick("catalyst", fullContext, projects)).toEqual([
       "delivery-van-redesign",
       "bourzma-x-shopping-mall",
     ]);
   });
 
-  it("weights Looking for > Industry > Work area > Workplace type", () => {
+  it("weights Looking_for above Workplace_type", () => {
+    // Catalyst: Gaisma (20 + 12) > Van (30) > Jersey (20 + 4).
+    const projects = withRelevance({
+      "gaisma-tunela-gala": lookingForFit,
+      "worlds-largest-basketball-jersey": workplaceFit,
+    });
+    const ranking = matchProjects("catalyst", fullContext, projects).ranking;
+    expect(ranking.slice(0, 3).map((s) => [s.project.id, s.total])).toEqual([
+      ["gaisma-tunela-gala", 32],
+      ["delivery-van-redesign", 30],
+      ["worlds-largest-basketball-jersey", 24],
+    ]);
+    expect(ranking[0].matchedOn).toEqual(["lookingFor"]);
+  });
+
+  it("adds both signals when both match", () => {
     const m = matchProjects("maker", fullContext, withRelevance({
       "worlds-largest-basketball-jersey": fullFit,
     }));
     expect(m.ranking[0]).toMatchObject({
       typePoints: 30,
-      contextPoints: 15,
-      matchedOn: ["lookingFor", "industry", "workArea", "workplaceType"],
+      contextPoints: 16,
+      matchedOn: ["lookingFor", "workplaceType"],
     });
   });
 
@@ -91,14 +107,14 @@ describe("matchProjects with professional context", () => {
 
   it("matches labels inside comma-separated answers, whole items only", () => {
     const projects = withRelevance({
-      "bourzma-x-shopping-mall": { relevantIndustries: ["Retail, fashion"] },
+      "bourzma-x-shopping-mall": { relevantLookingFor: ["Retail, fashion"] },
     });
-    const score = (industry: string) =>
-      matchProjects("catalyst", { ...EMPTY_CONTEXT, industry: [industry] }, projects)
+    const score = (lookingFor: string) =>
+      matchProjects("catalyst", { ...EMPTY_CONTEXT, lookingFor: [lookingFor] }, projects)
         .ranking.find((s) => s.project.id === "bourzma-x-shopping-mall")!.contextPoints;
-    expect(score("Retail, fashion")).toBe(4);
-    expect(score("Media, retail, FASHION")).toBe(4);
-    expect(score("  retail,  fashion ")).toBe(4);
+    expect(score("Retail, fashion")).toBe(12);
+    expect(score("Media, retail, FASHION")).toBe(12);
+    expect(score("  retail,  fashion ")).toBe(12);
     expect(score("Retail, fashion design")).toBe(0);
     expect(score("E-retail, fashion")).toBe(0);
   });

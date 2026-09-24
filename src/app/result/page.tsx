@@ -25,7 +25,7 @@ import {
  *                                              scores the answers first
  * The last form suits a Typeform "redirect on completion" URL.
  * Any form can add the professional answers used for project matching:
- *   &Workplace_type=...&Work_area=...&Industry=...&Looking_for=...
+ *   &Looking_for=...&Workplace_type=...  (both optional)
  * (multi-select answers as comma-separated labels, as Typeform recalls them).
  * Unstyled on purpose: the final visual design comes later.
  */
@@ -103,10 +103,8 @@ export default async function ResultPage(props: PageProps<"/result">) {
     return value ? [value] : [];
   };
   const context: ProfessionalContext = {
-    workplaceType: answersFor(PROFESSIONAL_FIELD_REFS.workplaceType),
-    workArea: answersFor(PROFESSIONAL_FIELD_REFS.workArea),
-    industry: answersFor(PROFESSIONAL_FIELD_REFS.industry),
     lookingFor: answersFor(PROFESSIONAL_FIELD_REFS.lookingFor),
+    workplaceType: answersFor(PROFESSIONAL_FIELD_REFS.workplaceType),
   };
   const match = matchProjects(typeId, context);
 

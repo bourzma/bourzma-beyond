@@ -19,8 +19,6 @@ export interface BeyondProject {
    * fit (see matching.ts). Empty list = this field never adds points.
    */
   relevantWorkplaceTypes: string[];
-  relevantWorkAreas: string[];
-  relevantIndustries: string[];
   relevantLookingFor: string[];
 }
 
@@ -39,8 +37,6 @@ export const PROJECTS: BeyondProject[] = [
     ctaUrl: null,
     // TODO: fill with exact Typeform option labels.
     relevantWorkplaceTypes: [],
-    relevantWorkAreas: [],
-    relevantIndustries: [],
     relevantLookingFor: [],
   },
   {
@@ -57,8 +53,6 @@ export const PROJECTS: BeyondProject[] = [
     ctaUrl: null,
     // TODO: fill with exact Typeform option labels.
     relevantWorkplaceTypes: [],
-    relevantWorkAreas: [],
-    relevantIndustries: [],
     relevantLookingFor: [],
   },
   {
@@ -76,8 +70,6 @@ export const PROJECTS: BeyondProject[] = [
     ctaUrl: null,
     // TODO: fill with exact Typeform option labels.
     relevantWorkplaceTypes: [],
-    relevantWorkAreas: [],
-    relevantIndustries: [],
     relevantLookingFor: [],
   },
   {
@@ -94,8 +86,6 @@ export const PROJECTS: BeyondProject[] = [
     ctaUrl: null,
     // TODO: fill with exact Typeform option labels.
     relevantWorkplaceTypes: [],
-    relevantWorkAreas: [],
-    relevantIndustries: [],
     relevantLookingFor: [],
   },
   {
@@ -112,8 +102,6 @@ export const PROJECTS: BeyondProject[] = [
     ctaUrl: null,
     // TODO: fill with exact Typeform option labels.
     relevantWorkplaceTypes: [],
-    relevantWorkAreas: [],
-    relevantIndustries: [],
     relevantLookingFor: [],
   },
 ];

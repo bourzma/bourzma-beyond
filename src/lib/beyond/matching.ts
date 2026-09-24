@@ -6,17 +6,13 @@ import type { BeyondTypeId } from "./types";
  * Each field is a list so single- and multi-select questions look the same.
  */
 export interface ProfessionalContext {
-  workplaceType: string[];
-  workArea: string[];
-  industry: string[];
   lookingFor: string[];
+  workplaceType: string[];
 }
 
 export const EMPTY_CONTEXT: ProfessionalContext = {
-  workplaceType: [],
-  workArea: [],
-  industry: [],
   lookingFor: [],
+  workplaceType: [],
 };
 
 /**
@@ -26,21 +22,19 @@ export const EMPTY_CONTEXT: ProfessionalContext = {
 export const TYPE_POINTS = [30, 20, 10] as const;
 
 /**
- * Points for each professional field that matches. They add up to 15 at most,
- * which is more than one type step (10) but less than two (20): a strong
- * professional fit can lift a project one place, never two.
+ * Points for each professional field that matches, compared with the 10-point
+ * gap between type places:
+ * - Looking_for (12) alone can lift a project one place.
+ * - Workplace_type (4) alone only decides between equally placed projects.
+ * - Both together (16) still stay below two places (20): never two places.
  */
 export const CONTEXT_POINTS = {
-  lookingFor: 6,
-  industry: 4,
-  workArea: 3,
-  workplaceType: 2,
+  lookingFor: 12,
+  workplaceType: 4,
 } as const;
 
 const CONTEXT_FIELDS = {
   lookingFor: "relevantLookingFor",
-  industry: "relevantIndustries",
-  workArea: "relevantWorkAreas",
   workplaceType: "relevantWorkplaceTypes",
 } as const satisfies Record<keyof ProfessionalContext, keyof BeyondProject>;
 

@@ -22,34 +22,50 @@ describe("extractAnswers", () => {
 });
 
 describe("extractProfessionalContext", () => {
-  it("reads single choice, multi choice, Other and text answers", () => {
+  // Test-only labels, not the real Typeform options.
+  it("reads multi choice with Other, and single choice", () => {
     expect(
       extractProfessionalContext({
         form_response: {
           answers: [
-            { type: "choice", choice: { label: "Agency" }, field: { ref: "Workplace_type" } },
-            { type: "choices", choices: { labels: ["A", "B"], other: "C" }, field: { ref: "Looking_for" } },
-            { type: "choice", choice: { other: "Space tech" }, field: { ref: "Industry" } },
-            { type: "text", text: "Marketing", field: { ref: "Work_area" } },
-            { type: "text", text: "Jane", field: { ref: "First_name" } },
+            { type: "choices", choices: { labels: ["TEST_A", "TEST_B"], other: "TEST_OTHER" }, field: { ref: "Looking_for" } },
+            { type: "choice", choice: { label: "TEST_WORKPLACE" }, field: { ref: "Workplace_type" } },
           ],
         },
       }),
     ).toEqual({
-      workplaceType: ["Agency"],
-      workArea: ["Marketing"],
-      industry: ["Space tech"],
-      lookingFor: ["A", "B", "C"],
+      lookingFor: ["TEST_A", "TEST_B", "TEST_OTHER"],
+      workplaceType: ["TEST_WORKPLACE"],
     });
   });
 
+  it("reads a single choice answered with Other", () => {
+    expect(
+      extractProfessionalContext({
+        form_response: {
+          answers: [{ type: "choice", choice: { other: "TEST_OTHER" }, field: { ref: "Workplace_type" } }],
+        },
+      }).workplaceType,
+    ).toEqual(["TEST_OTHER"]);
+  });
+
+  it("ignores Role, contact fields and removed fields", () => {
+    expect(
+      extractProfessionalContext({
+        form_response: {
+          answers: [
+            { type: "text", text: "TEST_ROLE", field: { ref: "Role" } },
+            { type: "text", text: "TEST_COMPANY", field: { ref: "Company" } },
+            { type: "choice", choice: { label: "TEST_X" }, field: { ref: "Industry" } },
+            { type: "choice", choice: { label: "TEST_Y" }, field: { ref: "Work_area" } },
+          ],
+        },
+      }),
+    ).toEqual({ lookingFor: [], workplaceType: [] });
+  });
+
   it("returns empty lists when the questions are missing", () => {
-    expect(extractProfessionalContext({})).toEqual({
-      workplaceType: [],
-      workArea: [],
-      industry: [],
-      lookingFor: [],
-    });
+    expect(extractProfessionalContext({})).toEqual({ lookingFor: [], workplaceType: [] });
   });
 });
 
